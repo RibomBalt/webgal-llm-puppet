@@ -1,0 +1,3 @@
+[submodule "mockai"]
+	path = mockai
+	url = git@github.com:polly3d/mockai.git
