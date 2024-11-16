@@ -1,0 +1,9 @@
+openai
+flask
+flask-sqlalchemy
+flask-socketio
+Flask-Session[redis]
+cachelib
+transformers
+pytest
+celery
