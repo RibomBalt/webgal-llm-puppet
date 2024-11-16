@@ -1,3 +1,6 @@
 [submodule "mockai"]
 	path = mockai
 	url = git@github.com:polly3d/mockai.git
+[submodule "WebGAL"]
+	path = WebGAL
+	url = git@github.com:OpenWebGAL/WebGAL.git
