@@ -1,0 +1,6 @@
+changeFigure:mygo_avemujica_v6/sakiko/341_casual-2023_rip/model.json -left -motion=Idle
+WebGal:我是在线资源-{prompt};
+setVar:rand=random()
+getUserInput:prompt
+Me:{prompt}-{prompt}-{prompt}
+changeScene:http://localhost:10228/static/test_scene.txt?{prompt}-{rand}

@@ -1,7 +1,7 @@
 openai
 flask
 flask-sqlalchemy
-flask-socketio
+flask_cors
 Flask-Session[redis]
 cachelib
 transformers

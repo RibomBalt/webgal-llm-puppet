@@ -18,3 +18,10 @@ def load_secret(name="mockai", secret_path="../secrets.json"):
         return secrets
     else:
         return secrets[name]
+
+def load_system_preset(preset_path='../system_prompts.json'):
+    with open(preset_path, 'r') as fp:
+        presets = json.load(fp)
+    
+    return presets
+

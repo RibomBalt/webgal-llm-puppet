@@ -106,7 +106,6 @@ class BotAgent:
         db_session: Session,
         sess_id: UUID,
         model_secret: Secret,
-        max_history=MAX_MEMORY_DEFAULT,
     ):
         """
         load session from ORM and construct a BotAgent
@@ -130,7 +129,7 @@ class BotAgent:
                 select(ChatMessage)
                 .filter_by(session_id=sess_id)
                 .order_by(ChatMessage.time.desc())
-                .limit(max_history)
+                .limit(init_session.max_memory)
             )
             .scalars()
             .all()
@@ -250,6 +249,7 @@ class BotAgent:
         # model params
         model_params = json.loads(self.chat_session.model_params)
 
+        logger.debug(f"{message_request}, {model_params}")
         client = OpenAI(
             api_key=self.model_secret["api_key"], base_url=self.model_secret["base_url"]
         )

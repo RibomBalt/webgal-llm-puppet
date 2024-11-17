@@ -1,9 +1,10 @@
 from flask import Flask
 import os
 from .chat.orm import db
-from .chat import chat as chat_bp
+from .chat import chat as chat_bp, webgal
 from .logger import log_setup
-from .utils import get_environ_int, load_secret
+from .utils import get_environ_int, load_secret, load_system_preset
+from flask_cors import CORS
 
 
 def init_db(app: Flask, db_uri: str):
@@ -33,6 +34,10 @@ def create_app():
     app.config["MODEL_NAME"] = os.environ.get("MODEL", "mockai")
     app.config["MODEL_SECRETS"] = load_secret(name=None)
 
+    # load preset of system prompts
+    app.config['MODEL_PRESETS'] = load_system_preset()
+    app.config['DEFAULT_PRESET'] = "sakiko"
+
     # config
     app.config["HOST"] = os.environ.get("HOST", "127.0.0.1")
     app.config["PORT"] = get_environ_int("PORT", 10228)
@@ -56,6 +61,10 @@ def create_app():
 
     # blueprint
     app.register_blueprint(chat_bp)
+    app.register_blueprint(webgal)
+
+    # CORS permit all
+    CORS(app)
 
     # log
     log_setup(

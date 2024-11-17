@@ -8,18 +8,20 @@ from flask import (
 from uuid import UUID
 import json
 import random
+from datetime import datetime
 
 from .orm import ChatSession
 from .bot_agent import BotAgent
 from . import chat as chat_bp
 
 
-def session_id_to_bot(sess_key="session_id") -> BotAgent:
+def session_id_to_bot(sess_key="session_id", data_from="json") -> BotAgent:
     """
     called under context
     raise IndexError when invalid session, contain a Response object
     """
-    chat_session_id = request.json.get(sess_key, "")
+    # TODO sanitize data_from
+    chat_session_id = getattr(request, data_from).get(sess_key, "")
     if not chat_session_id:
         raise IndexError({"result": "error", "reason": "no chat_session id"})
 
@@ -111,8 +113,11 @@ def edit_session():
     return {"result": "ok", "session": bot.chat_session.to_dict()}
 
 
-@chat_bp.route("/chat", methods=["POST"])
+@chat_bp.route("/chat", methods=["GET"])
 def chat_completion():
+    """
+    NOTE: the state of chat completion (i.e. how many messages have been loaded) won't affect the result of chat, since it will always reload certain amount of messages specified by ChatSession.max_memory as context
+    """
     # TODO add options to temporarily change model params?
     try:
         bot = session_id_to_bot()
@@ -127,7 +132,6 @@ def chat_completion():
     # TODO maybe update session_name if this is the first conversation
 
     # stream with SSE
-    # NOTE: the generator should run until last return...
     if do_sse:
         msg_gen = bot.get_answer(user_prompt, stream=True)
         resp = Response(stream_with_context(msg_gen), mimetype="text/event-stream")
@@ -136,6 +140,45 @@ def chat_completion():
     else:
         msg_ret = bot.get_answer(user_prompt, stream=False)
         return msg_ret
+
+
+@chat_bp.route("/chat", methods=["GET"])
+def chat_history():
+    """get history before certain chat"""
+    # TODO
+    bot = session_id_to_bot(data_from="args")
+
+    before_timestamp = request.args.get("before", datetime.max.timestamp())
+    try:
+        time_before = datetime.fromtimestamp(float(before_timestamp))
+    except ValueError:
+        return Response(
+            json.dumps(
+                {
+                    "result": "error",
+                    "reason": f"before={before_timestamp} is not valid timestamp",
+                }
+            ),
+            status=400,
+        )
+
+    try:
+        max_read_items = int(request.args.get("max", BotAgent.MAX_MEMORY_DEFAULT))
+    except ValueError:
+        max_read_items = BotAgent.MAX_MEMORY_DEFAULT
+
+    chat_msg_list = bot.load_chat_history(
+        current_app.database.session,
+        time_before=time_before,
+        max_read_items=max_read_items,
+    )
+
+    data_resp = [
+        {k: v for k, v in m.to_dict().items() if k in ("time", "role", "mood", "msg")}
+        for m in chat_msg_list
+    ]
+
+    return {"result": "ok", "history": data_resp}
 
 
 #  =================
