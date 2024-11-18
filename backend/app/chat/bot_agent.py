@@ -1,4 +1,3 @@
-from typing import Literal
 from openai import OpenAI
 from .orm import ChatSession, ChatMessage
 from uuid import UUID
@@ -8,11 +7,7 @@ import json
 import random
 import logging
 from datetime import datetime
-# from queue import Queue
-
-Message = dict[Literal["role", "content"], str]
-Secret = dict[Literal["model", "api_key", "base_url"], str]
-# ModelParams = dict[Literal["temperature"], float]
+from ..typt_hint import Secret, Preset
 
 logger = logging.getLogger("bot")
 
@@ -99,6 +94,24 @@ class BotAgent:
             self.chat_session.last_chat_time = next_message.time
 
         return next_message
+
+    @classmethod
+    def new_from_preset(cls, bot_preset: Preset, secret_keybed: dict[str, Secret]):
+        """A caller-friendly interface to create a new bot.
+        all required field in presets: speaker, model, system_prompt, model, model_params, welcome_message
+        """
+        bot = cls.new_session(
+            f"{bot_preset['speaker']}-{bot_preset['model']}-{random.randint(10000,99999)}",
+            secret_key=bot_preset["model"],
+            system_prompt=bot_preset["system_prompt"],
+            model_secret=secret_keybed[bot_preset["model"]],
+            model_params=json.dumps(bot_preset["model_params"]),
+        )
+
+        if bot_preset["welcome_message"]:
+            bot.new_message("assistant", bot_preset["welcome_message"])
+
+        return bot
 
     @classmethod
     def load_from_db(
@@ -274,7 +287,13 @@ class BotAgent:
                             resp_content.append(content)
 
                         # the None is not stripped to notify EOF downstream
-                        yield 'data: ' + json.dumps({'delta': content, 'index': ichunk, 'type': 'delta'}) + '\n\n'
+                        yield (
+                            "data: "
+                            + json.dumps(
+                                {"delta": content, "index": ichunk, "type": "delta"}
+                            )
+                            + "\n\n"
+                        )
 
                     # EOF
                     self.new_message("assistant", "".join(resp_content))
@@ -283,9 +302,7 @@ class BotAgent:
                         self.save_to_db(db_session=db_session)
                     # there should be a notice of EOF to the server
                     # we put it after DB to prevent Race condition, though it might be slower (maybe irrelavent)
-                    yield 'data: ' + json.dumps({'type': 'EOF'})+ '\n\n'
-
-                    
+                    yield "data: " + json.dumps({"type": "EOF"}) + "\n\n"
 
                 return chunk_stream()
 

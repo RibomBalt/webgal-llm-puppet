@@ -1,6 +1,10 @@
 from flask import Flask
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.executors.base import run_job
 import os
 from .chat.orm import db
+from .chat.bot_agent import BotAgent
 from .chat import chat as chat_bp, webgal
 from .logger import log_setup
 from .utils import get_environ_int, load_secret, load_system_preset
@@ -35,8 +39,25 @@ def create_app():
     app.config["MODEL_SECRETS"] = load_secret(name=None)
 
     # load preset of system prompts
-    app.config['MODEL_PRESETS'] = load_system_preset()
-    app.config['DEFAULT_PRESET'] = "sakiko"
+    app.config["MODEL_PRESETS"] = load_system_preset()
+    app.config["DEFAULT_PRESET"] = "sakiko"
+
+    # attach all bot to the app, would be later accessed by session id hex
+    app.bot = {}
+
+    # enable mood system?
+    enable_mood = bool(get_environ_int("MOOD", False))
+    app.config["MOOD_ANALYZER"] = None
+    if enable_mood:
+        mood_bot = BotAgent.new_from_preset(
+            app.config["MODEL_PRESETS"]["mood_analyzer"], app.config["MODEL_SECRETS"]
+        )
+        app.bot["mood"] = mood_bot
+
+    # add a background scheduler for app
+    exeutors = ThreadPoolExecutor(max_workers=4)
+    app.scheduler = BackgroundScheduler(exeutors=exeutors)
+    app.scheduler.start()
 
     # config
     app.config["HOST"] = os.environ.get("HOST", "127.0.0.1")
@@ -45,7 +66,6 @@ def create_app():
     app.config["DEBUG"] = is_debug
 
     # orm
-
     db_uri = os.environ.get("SQLITE_URI", "sqlite:///chat.db")
     db = init_db(app, db_uri)
     app.database = db

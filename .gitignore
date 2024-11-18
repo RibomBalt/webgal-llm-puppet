@@ -1,1 +1,12 @@
 secrets.json
+/.vscode/*
+!/.vscode/launch.json
+
+py_venv
+tmp
+.fake
+__pycache__
+logs
+instance
+.vscode/settings.json
+.pytest_cache

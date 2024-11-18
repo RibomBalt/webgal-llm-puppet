@@ -1,81 +1,65 @@
 from flask import (
     request,
-    session,
-    render_template,
-    send_from_directory,
     current_app,
-    stream_with_context,
     Response,
 )
 from uuid import UUID
-import json
-import random
-from datetime import datetime
 from urllib.parse import unquote
 
-from .orm import ChatSession
 from .bot_agent import BotAgent
+from .webgal_utils import text_split_sentence, TEXT_SPLIT_PUNCTUATIONS, text_to_webgal_scene
 from . import webgal
 
 
-def text_to_webgal_scene(speaker: str, text: str, sess_id: str, model_path:str, expression_choices:dict[str,list[str]]):
-    """ """
-    # split text
-    # remove double newline
-    text = text.replace("\n\n", "\n")
-    # split by 。or \n
-    sentence_buf = []
-    c_marker = 0
-    for i_c, c in enumerate(text):
-        # better split sentence
-        if c in "。？！\n":
-            # discard consecutive punctuations
-            if i_c > c_marker:
-                sentence_buf.append(text[c_marker : i_c + 1].strip())
-                c_marker = i_c + 1
-    if c_marker < len(text) - 1:
-        sentence_buf.append(text[c_marker:].strip())
-
-    # TODO also get mood for each sentence
-    # now use random
-    
-    listening_mood = random.choice(expression_choices['listening']).split(':')
-    expression_mood = [random.choice(expression_choices['开心']).split(':') for _ in sentence_buf]
-
-    return render_template(
-        "chat.txt",
-        sess_id=sess_id,
-        speaker=speaker,
-        sentences_expressions=zip(sentence_buf, expression_mood),
-        model_figure=model_path,
-        listening=listening_mood,
-        baseurl=f"http://127.0.0.1:{current_app.config['PORT']}/webgal/chat.txt",
-    )
+def load_bot(sess_id: str):
+    """find botAgent object with sess_id in cache/db
+    called under context
+    """
+    if sess_id in current_app.bot:
+        # cache hit
+        return current_app.bot.get(sess_id)
+    else:
+        # could raise IndexError
+        bot = BotAgent.load_from_db(
+            current_app.database.session,
+            sess_id=UUID(sess_id),
+            model_secret=current_app.config["MODEL_SECRETS"],
+        )
+        # so bot is not in cache, add to it
+        current_app.app[bot.chat_session.id.hex] = bot
+        return bot
 
 
 @webgal.route("/newchat.txt")
 def newchat():
     """create a new session"""
-    # start new session
+    # presets load
     bot_preset = current_app.config["MODEL_PRESETS"][
         current_app.config["DEFAULT_PRESET"]
     ]
-    bot = BotAgent.new_session(
-        f"sakiko-{random.randint(10000,99999)}",
-        secret_key=bot_preset["model"],
-        system_prompt=bot_preset["system_prompt"],
-        model_secret=current_app.config["MODEL_SECRETS"][bot_preset["model"]],
-        model_params=json.dumps(bot_preset["model_params"]),
-    )
 
-    welcome_message = bot_preset["welcome_message"]
-    bot.new_message("assistant", welcome_message)
+    bot = None
+    if "sess_id" in request.args:
+        # sess_id provided, try to load from cache or database
+        try:
+            bot = load_bot(request.args.get("sess_id"))
+        except IndexError:
+            bot = None
+
+    if bot is None:
+        # create a new session
+        bot = BotAgent.new_from_preset(bot_preset, current_app.config["MODEL_SECRETS"])
+
     sess_id = bot.chat_session.id.hex
+    current_app.bot[sess_id] = bot
 
-    # TODO hardcode name
-    script = text_to_webgal_scene(bot_preset["speaker"], welcome_message, sess_id=sess_id, model_path=bot_preset["live2d_model_path"], expression_choices=bot_preset["mood"])
-
-    bot.save_to_db(current_app.database.session)
+    script = text_to_webgal_scene(
+        bot_preset["speaker"],
+        bot_preset["welcome_message"],
+        sess_id=sess_id,
+        model_path=bot_preset["live2d_model_path"],
+        expression_choices=bot_preset["mood"],
+    )
 
     return Response(script, mimetype="text/plain")
 
@@ -89,15 +73,35 @@ def getchat():
     ]
 
     prompt = unquote(prompt)
-    bot = BotAgent.load_from_db(
-        current_app.database.session,
-        sess_id=UUID(sess_id),
-        model_secret=current_app.config["MODEL_SECRETS"],
-    )
-    answer = bot.get_answer(prompt, stream=False)
+    try:
+        bot = load_bot(sess_id=sess_id)
+    except IndexError:
+        current_app.logger.warning(f"chat session {sess_id} not found both in cache and db, start a new one")
+        bot = BotAgent.new_from_preset(bot_preset, current_app.config["MODEL_SECRETS"])
+        sess_id = bot.chat_session.id.hex
+        current_app.bot[sess_id] = bot
     
-    script = text_to_webgal_scene(bot_preset["speaker"], answer, sess_id=sess_id, model_path=bot_preset["live2d_model_path"], expression_choices=bot_preset["mood"])
+    answer = bot.get_answer(prompt, stream=False)
+    # TODO techniquely this is streamable, just send back a sentence at a time
 
-    bot.save_to_db(current_app.database.session)
+    script = text_to_webgal_scene(
+        bot_preset["speaker"],
+        answer,
+        sess_id=sess_id,
+        model_path=bot_preset["live2d_model_path"],
+        expression_choices=bot_preset["mood"],
+    )
 
     return Response(script, mimetype="text/plain")
+
+
+@webgal.route("/save")
+def save():
+    """save all current bots to database"""
+    try:
+        for bot in current_app.bot.values():
+            bot.save_to_db(current_app.database.session, commit=False)
+    finally:
+        current_app.database.session.commit()
+
+    return {"result": "ok"}

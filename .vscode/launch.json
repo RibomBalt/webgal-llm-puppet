@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "Python app.tests.test_bot",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "app.tests.test_bot",
+            "cwd": "${workspaceFolder}/backend",
+        },
+        {
+            "name": "Python 调试程序: 当前文件",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/backend",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/backend"
+            }
+        },
+        {
+            "name": "Flask",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/app.py",
+            "cwd": "${workspaceFolder}/backend",
+            "console": "integratedTerminal",
+            "env": {},
+            "justMyCode": false
+        },
+    ]
+}

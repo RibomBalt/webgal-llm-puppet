@@ -2,7 +2,7 @@ openai
 flask
 flask-sqlalchemy
 flask_cors
-Flask-Session[redis]
+flask_apscheduler
 cachelib
 transformers
 pytest

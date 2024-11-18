@@ -1,8 +1,8 @@
 setVar:sess={{ sess_id }}
 changeBg:N（主角相关工作地点）/N9.jpg -next
 {% for sent, mood in sentences_expressions %}
-changeFigure:{{model_figure}} -motion={{mood[0]|default("thinking01", true)}} -expression={{mood[1]|default("thinking02", true)}} -next;
-{{ speaker }}:{{ sent|safe }}
+changeFigure:{{model_figure}} -animationFlag=on -motion={{mood[0]|default("thinking01", true)}} -expression={{mood[1]|default("thinking02", true)}} -next;
+{{ speaker }}:{{ sent|safe }} -center
 {% endfor %}
 ;next input
 getUserInput:prompt -title=🔊🔊🔊 -buttonText=📞
