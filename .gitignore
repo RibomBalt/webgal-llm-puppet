@@ -2,6 +2,8 @@ secrets.json
 /.vscode/*
 !/.vscode/launch.json
 
+/shell/upload_clab.sh
+
 py_venv
 tmp
 .fake

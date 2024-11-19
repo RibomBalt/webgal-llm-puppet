@@ -233,13 +233,15 @@ class ChatBot:
         self,
         new_chat: str,
         stream=True,
+        sse=True,
         extract_chunk=True,
         db_session=None,
     ):
         """get answer by interact with bot
         answer would append to history after stream queue is drained (stream=True) or immediately (stream=False)
 
-        db_session: if set, save_to_db at the end of stream of SSE
+        sse=True: only work if stream=True. If true, return objects in sse formats, else in pure content, with EOF being a None
+        db_session: if set, save_to_db at the end of stream of SSE.
         NOTE: if extract_chunk is False, won't update self.chat_history
         """
         self.new_message("user", new_chat)
@@ -287,13 +289,16 @@ class ChatBot:
                             resp_content.append(content)
 
                         # the None is not stripped to notify EOF downstream
-                        yield (
-                            "data: "
-                            + json.dumps(
-                                {"delta": content, "index": ichunk, "type": "delta"}
+                        if sse:
+                            yield (
+                                "data: "
+                                + json.dumps(
+                                    {"delta": content, "index": ichunk, "type": "delta"}
+                                )
+                                + "\n\n"
                             )
-                            + "\n\n"
-                        )
+                        else:
+                            yield content
 
                     # EOF
                     self.new_message("assistant", "".join(resp_content))
@@ -302,7 +307,10 @@ class ChatBot:
                         self.save_to_db(db_session=db_session)
                     # there should be a notice of EOF to the server
                     # we put it after DB to prevent Race condition, though it might be slower (maybe irrelavent)
-                    yield "data: " + json.dumps({"type": "EOF"}) + "\n\n"
+                    if sse:
+                        yield "data: " + json.dumps({"type": "EOF"}) + "\n\n"
+                    else:
+                        yield None
 
                 return chunk_stream()
 

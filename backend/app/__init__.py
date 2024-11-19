@@ -1,7 +1,6 @@
 from flask import Flask
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
-from apscheduler.executors.base import run_job
 import os
 from .chat.orm import db
 from .chat.bot_agent import ChatBot
