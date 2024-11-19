@@ -98,7 +98,7 @@ def text_to_webgal_scene(
         listening=listening_mood,
         include_input=include_input,
         include_exit=include_exit,
-        baseurl=f"http://127.0.0.1:{current_app.config['PORT']}/webgal/chat.txt",
+        baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
     )
 
 

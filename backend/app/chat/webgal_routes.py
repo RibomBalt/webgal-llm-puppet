@@ -149,7 +149,7 @@ def newchat():
         [bot_preset["welcome_message"]],
         ["高兴"],
         sess_id,
-        baseurl=f"http://127.0.0.1:{current_app.config['PORT']}/webgal/chat.txt",
+        baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
         speaker_preset=bot_preset,
         include_input=True,
     )
@@ -185,7 +185,7 @@ def getchat():
             [],
             [],
             sess_id=sess_id,
-            baseurl=f"http://127.0.0.1:{current_app.config['PORT']}/webgal/chat.txt",
+            baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
             speaker_preset=bot_preset,
             include_exit=True,
         )
@@ -228,7 +228,7 @@ def getchat():
             sent_buf,
             mood_buf,
             sess_id=sess_id,
-            baseurl=f"http://127.0.0.1:{current_app.config['PORT']}/webgal/chat.txt",
+            baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
             speaker_preset=bot_preset,
             include_input=include_input,
         )
