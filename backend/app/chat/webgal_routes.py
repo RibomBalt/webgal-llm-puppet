@@ -11,7 +11,6 @@ from ..typt_hint import Preset
 from .webgal_utils import (
     text_split_sentence,
     TEXT_SPLIT_PUNCTUATIONS,
-    text_to_webgal_scene,
     sentence_mood_to_webgal_scene,
 )
 from flask_apscheduler.scheduler import BackgroundScheduler
@@ -258,6 +257,9 @@ def save():
     """save all current bots to database"""
     try:
         for bot in current_app.bot.values():
+            if isinstance(bot, tuple):
+                bot = bot[0]
+
             bot.save_to_db(current_app.database.session, commit=False)
     finally:
         current_app.database.session.commit()

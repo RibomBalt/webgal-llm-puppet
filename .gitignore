@@ -6,7 +6,8 @@ secrets.json
 !/shell/start_backend.sh
 !/shell/start_webgal.sh
 
-py_venv
+py_venv_fastapi
+py_venv_flask
 tmp
 .fake
 __pycache__
