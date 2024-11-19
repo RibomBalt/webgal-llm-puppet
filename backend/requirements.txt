@@ -1,9 +1,3 @@
 openai
-flask
-flask-sqlalchemy
-flask_cors
-flask_apscheduler
-cachelib
-transformers
+fastapi[standard]
 pytest
-celery
