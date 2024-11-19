@@ -28,7 +28,7 @@ def init_db(app: Flask, db_uri: str):
 
 
 def create_app():
-    is_debug = bool(get_environ_int("DEBUG", True))
+    is_debug = bool(get_environ_int("DEBUG", False))
 
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.urandom(32)
@@ -45,7 +45,7 @@ def create_app():
     app.bot = {}
 
     # enable mood system?
-    enable_mood = bool(get_environ_int("MOOD", False))
+    enable_mood = bool(get_environ_int("MOOD", True))
     app.config["MOOD_ANALYZER"] = None
     if enable_mood:
         mood_bot = ChatBot.new_from_preset(
@@ -65,7 +65,7 @@ def create_app():
     app.config["DEBUG"] = is_debug
 
     # orm
-    db_uri = os.environ.get("SQLITE_URI", "sqlite:///chat.db")
+    db_uri = os.environ.get("SQLITE_URI", "sqlite://")
     db = init_db(app, db_uri)
     app.database = db
 

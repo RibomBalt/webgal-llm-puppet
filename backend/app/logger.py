@@ -1,8 +1,10 @@
 import logging
 from flask.logging import default_handler
+import os
 
 
 def log_setup(logger_names, log_level="INFO", log_file="logs/info.log"):
+    os.makedirs(os.path.dirname(log_file), exist_ok=True)
     file_handler = logging.FileHandler(filename=log_file)
 
     for logger in logger_names:

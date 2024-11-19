@@ -1,0 +1,62 @@
+diff --git a/packages/webgal/public/game/scene/start.txt b/packages/webgal/public/game/scene/start.txt
+index 1e072c7c..61f7f367 100644
+--- a/packages/webgal/public/game/scene/start.txt
++++ b/packages/webgal/public/game/scene/start.txt
+@@ -1,3 +1,10 @@
+ setVar:heroine=WebGAL;
+ setVar:egine=WebGAL;
+-choose:简体中文:demo_zh_cn.txt|日本語:demo_ja.txt|English:demo_en.txt|Test:function_test.txt;
++; choose:简体中文:demo_zh_cn.txt|日本語:demo_ja.txt|English:demo_en.txt|Test:function_test.txt;
++; choose:test escape:demo_escape.txt|test online resources:http://localhost:10228/static/test_scene.txt
++choose:客服小祥📞:llm|README.MD:help;
++label:llm
++changeScene:http://localhost:10228/webgal/newchat.txt;
++label:help
++changeFigure:none
++changeScene:http://localhost:10228/static/readme.txt
+\ No newline at end of file
+diff --git a/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss b/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss
+index 930d0463..83d1aa09 100644
+--- a/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss
++++ b/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss
+@@ -12,9 +12,10 @@
+ 
+ .Choose_item {
+   cursor: pointer;
+-  min-width: 50%;
++  min-width: 75%;
++  min-height: 60%;
+   padding: 0.25em 1em 0.25em 1em;
+-  font-size: 265%;
++  font-size: 175%;
+   color: #005caf;
+   text-align: center;
+   border-radius: 4px;
+diff --git a/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx b/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx
+index 68fb584b..8b814837 100644
+--- a/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx
++++ b/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx
+@@ -31,7 +31,7 @@ export const getUserInput = (sentence: ISentence): IPerform => {
+     <div style={{ fontFamily: font }} className={styles.glabalDialog_container}>
+       <div className={styles.glabalDialog_container_inner}>
+         <div className={styles.title}>{title}</div>
+-        <input id="user-input" className={styles.Choose_item} />
++        <textarea id="user-input" className={styles.Choose_item} />
+         <div
+           onMouseEnter={playSeEnter}
+           onClick={() => {
+diff --git a/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts b/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts
+index a09822b7..45806dd4 100644
+--- a/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts
++++ b/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts
+@@ -10,7 +10,9 @@ import { WebGAL } from '@/Core/WebGAL';
+ 
+ export const scenePrefetcher = (sceneList: Array<string>): void => {
+   for (const e of sceneList) {
+-    if (!WebGAL.sceneManager.settledScenes.includes(e)) {
++    if (e.match(/^http:/) || e.match(/^https:/)) {
++      logger.info(`跳过预加载在线场景：${e}`);
++    } else if (!WebGAL.sceneManager.settledScenes.includes(e)) {
+       logger.info(`现在预加载场景${e}`);
+       sceneFetcher(e).then((r) => {
+         sceneParser(r, e, e);
