@@ -11,11 +11,11 @@ import random
 from datetime import datetime
 
 from .orm import ChatSession
-from .bot_agent import BotAgent
+from .bot_agent import ChatBot
 from . import chat as chat_bp
 
 
-def session_id_to_bot(sess_key="session_id", data_from="json") -> BotAgent:
+def session_id_to_bot(sess_key="session_id", data_from="json") -> ChatBot:
     """
     called under context
     raise IndexError when invalid session, contain a Response object
@@ -26,7 +26,7 @@ def session_id_to_bot(sess_key="session_id", data_from="json") -> BotAgent:
         raise IndexError({"result": "error", "reason": "no chat_session id"})
 
     try:
-        bot: BotAgent = BotAgent.load_from_db(
+        bot: ChatBot = ChatBot.load_from_db(
             db_session=current_app.database.session,
             sess_id=UUID(chat_session_id),
             model_secret=current_app.config["MODEL_SECRETS"],
@@ -65,11 +65,11 @@ def new_session():
     secret_key = request.json.get("secret_key", "mockai")
     system_prompt = request.json.get("system_prompt", "")
     model_params = request.json.get("model_params", {})
-    max_memory = request.json.get("max_memory", BotAgent.MAX_MEMORY_DEFAULT)
+    max_memory = request.json.get("max_memory", ChatBot.MAX_MEMORY_DEFAULT)
 
     secret = current_app.config["MODEL_SECRETS"][secret_key]
 
-    bot = BotAgent.new_session(
+    bot = ChatBot.new_session(
         f"{secret_key}.{random.randint(10000,99999)}",
         secret_key=secret_key,
         system_prompt=system_prompt,
@@ -163,9 +163,9 @@ def chat_history():
         )
 
     try:
-        max_read_items = int(request.args.get("max", BotAgent.MAX_MEMORY_DEFAULT))
+        max_read_items = int(request.args.get("max", ChatBot.MAX_MEMORY_DEFAULT))
     except ValueError:
-        max_read_items = BotAgent.MAX_MEMORY_DEFAULT
+        max_read_items = ChatBot.MAX_MEMORY_DEFAULT
 
     chat_msg_list = bot.load_chat_history(
         current_app.database.session,

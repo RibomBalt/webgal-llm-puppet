@@ -12,7 +12,7 @@ from ..typt_hint import Secret, Preset
 logger = logging.getLogger("bot")
 
 
-class BotAgent:
+class ChatBot:
     """All interaction with Bots
     The chat history view only includes messages from last clear
     """
@@ -121,7 +121,7 @@ class BotAgent:
         model_secret: Secret,
     ):
         """
-        load session from ORM and construct a BotAgent
+        load session from ORM and construct a ChatBot
 
         raise IndexError if no session with this id is found
 
@@ -155,7 +155,7 @@ class BotAgent:
             else:
                 raise ValueError(f"invalid model_secret: {model_secret}")
 
-        bot = BotAgent(
+        bot = ChatBot(
             init_history=init_history,
             init_session=init_session,
             model_secret=model_secret,

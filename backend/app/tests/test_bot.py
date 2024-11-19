@@ -6,7 +6,7 @@ import time
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from uuid import uuid1
-from ..chat.bot_agent import BotAgent
+from ..chat.bot_agent import ChatBot
 from ..chat.orm import Base, ChatSession
 from ..utils import load_secret
 
@@ -31,7 +31,7 @@ def start_mockai():
 
 def test_getanswer(start_mockai):
     secret = load_secret(MODEL)
-    bot = BotAgent.new_session(
+    bot = ChatBot.new_session(
         session_name="test translation",
         secret_key=MODEL,
         system_prompt="Please translate user's input into Chinese",
@@ -64,7 +64,7 @@ def test_getanswer(start_mockai):
         h.export_message()["role"] == "assistant" for h in bot.chat_history[1::2]
     ), [h.export_message()["role"] for h in bot.chat_history[::1]]
 
-    assert str(bot) == str(BotAgent.from_dict(bot.to_dict()))
+    assert str(bot) == str(ChatBot.from_dict(bot.to_dict()))
 
 
 def test_db_session(start_mockai):
@@ -77,14 +77,14 @@ def test_db_session(start_mockai):
 
     # non-exist`
     with pytest.raises(IndexError):
-        BotAgent.load_from_db(
+        ChatBot.load_from_db(
             db_sess,
             uuid1(),
             model_secret=secret,
         )
 
     # new bot
-    bot = BotAgent.new_session(
+    bot = ChatBot.new_session(
         session_name="test translation",
         secret_key=MODEL,
         system_prompt="Please translate user's input into Chinese",
@@ -103,7 +103,7 @@ def test_db_session(start_mockai):
     assert str(chat_sess) == str(bot.chat_session)
 
     # load history
-    bot2 = BotAgent.load_from_db(db_sess, bot.chat_session.id, secret)
+    bot2 = ChatBot.load_from_db(db_sess, bot.chat_session.id, secret)
     assert all(
         msg.msg == str(ind)
         for msg, ind in zip(bot2.chat_history[::-1], range(39, -1, -1))

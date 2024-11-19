@@ -6,7 +6,7 @@ from flask import (
 from uuid import UUID
 from urllib.parse import unquote
 
-from .bot_agent import BotAgent
+from .bot_agent import ChatBot
 from .webgal_utils import text_split_sentence, TEXT_SPLIT_PUNCTUATIONS, text_to_webgal_scene
 from . import webgal
 
@@ -20,7 +20,7 @@ def load_bot(sess_id: str):
         return current_app.bot.get(sess_id)
     else:
         # could raise IndexError
-        bot = BotAgent.load_from_db(
+        bot = ChatBot.load_from_db(
             current_app.database.session,
             sess_id=UUID(sess_id),
             model_secret=current_app.config["MODEL_SECRETS"],
@@ -48,7 +48,7 @@ def newchat():
 
     if bot is None:
         # create a new session
-        bot = BotAgent.new_from_preset(bot_preset, current_app.config["MODEL_SECRETS"])
+        bot = ChatBot.new_from_preset(bot_preset, current_app.config["MODEL_SECRETS"])
 
     sess_id = bot.chat_session.id.hex
     current_app.bot[sess_id] = bot
@@ -77,7 +77,7 @@ def getchat():
         bot = load_bot(sess_id=sess_id)
     except IndexError:
         current_app.logger.warning(f"chat session {sess_id} not found both in cache and db, start a new one")
-        bot = BotAgent.new_from_preset(bot_preset, current_app.config["MODEL_SECRETS"])
+        bot = ChatBot.new_from_preset(bot_preset, current_app.config["MODEL_SECRETS"])
         sess_id = bot.chat_session.id.hex
         current_app.bot[sess_id] = bot
     

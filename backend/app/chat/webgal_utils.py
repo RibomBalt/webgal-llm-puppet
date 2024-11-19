@@ -1,6 +1,6 @@
 from flask import current_app, render_template
 import random
-from .bot_agent import BotAgent
+from .bot_agent import ChatBot
 import logging
 
 logger = logging.getLogger('bot')
@@ -20,7 +20,7 @@ def text_to_webgal_scene(
     mood_buf = []
     for sent in sentence_buf:
         if "mood" in current_app.bot:
-            mood_bot: BotAgent = current_app.bot["mood"]
+            mood_bot: ChatBot = current_app.bot["mood"]
             mood_answer = mood_bot.get_answer(sent, stream=False).strip()
             logger.debug(f"mood for {sent}:|{mood_answer}|")
             if mood_answer not in expression_choices.keys():

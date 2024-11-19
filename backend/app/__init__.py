@@ -4,7 +4,7 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.executors.base import run_job
 import os
 from .chat.orm import db
-from .chat.bot_agent import BotAgent
+from .chat.bot_agent import ChatBot
 from .chat import chat as chat_bp, webgal
 from .logger import log_setup
 from .utils import get_environ_int, load_secret, load_system_preset
@@ -49,7 +49,7 @@ def create_app():
     enable_mood = bool(get_environ_int("MOOD", False))
     app.config["MOOD_ANALYZER"] = None
     if enable_mood:
-        mood_bot = BotAgent.new_from_preset(
+        mood_bot = ChatBot.new_from_preset(
             app.config["MODEL_PRESETS"]["mood_analyzer"], app.config["MODEL_SECRETS"]
         )
         app.bot["mood"] = mood_bot
