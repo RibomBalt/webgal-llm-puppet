@@ -2,7 +2,9 @@ secrets.json
 /.vscode/*
 !/.vscode/launch.json
 
-/shell/upload_clab.sh
+/shell/*
+!/shell/start_backend.sh
+!/shell/start_webgal.sh
 
 py_venv
 tmp

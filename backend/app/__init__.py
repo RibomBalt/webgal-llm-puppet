@@ -59,9 +59,18 @@ def create_app():
     app.scheduler.start()
 
     # config
+    # This is how to bind the server
     app.config["HOST"] = os.environ.get("HOST", "127.0.0.1")
     app.config["PORT"] = get_environ_int("PORT", 10228)
+    # This is how user's browser would access this backend
+    app.config["WEBGAL_BACKEND_BASEURL"] = os.environ.get(
+        "WEBGAL_BACKEND_BASEURL", f"http://{app.config['HOST']}:{app.config['PORT']}"
+    )
     # app.config["WS_PORT"] = get_environ_int("WS_PORT", 10229)
+
+    # this is proxy
+    app.config["PROXY_URL"] = os.environ.get("PROXY_URL", None)
+
     app.config["DEBUG"] = is_debug
 
     # orm

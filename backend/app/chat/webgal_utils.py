@@ -74,7 +74,7 @@ def text_to_webgal_scene(
     for sent in sentence_buf:
         if "mood" in current_app.bot:
             mood_bot: ChatBot = current_app.bot["mood"]
-            mood_answer = mood_bot.get_answer(sent, stream=False).strip()
+            mood_answer = mood_bot.get_answer(sent, stream=False, proxy_url=current_app.config['PROXY_URL']).strip()
             logger.debug(f"mood for {sent}:|{mood_answer}|")
             if mood_answer not in expression_choices.keys():
                 mood_answer = None
@@ -98,7 +98,7 @@ def text_to_webgal_scene(
         listening=listening_mood,
         include_input=include_input,
         include_exit=include_exit,
-        baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
+        baseurl=f"{current_app.config['WEBGAL_BACKEND_BASEURL']}/webgal/chat.txt",
     )
 
 

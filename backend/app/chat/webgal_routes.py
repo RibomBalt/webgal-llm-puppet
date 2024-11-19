@@ -50,7 +50,10 @@ def load_bot(sess_id: str, bot_preset: Preset):
 
 
 def task_put_sentence_into_queue(
-    resp_queue: Queue, resp_gen, mood_bot: ChatBot | None = None
+    resp_queue: Queue,
+    resp_gen,
+    mood_bot: ChatBot | None = None,
+    proxy_url: str | None = None,
 ):
     """
     this is called by apscheduler, and
@@ -69,7 +72,9 @@ def task_put_sentence_into_queue(
                     # each sent is a complete sentence
                     # here we block the mood analyzer (since this is threaded background)
                     if mood_bot is not None:
-                        mood = mood_bot.get_answer(sent, stream=False)
+                        mood = mood_bot.get_answer(
+                            sent, stream=False, proxy_url=proxy_url
+                        )
                     else:
                         mood = ""
                     logger.debug(f"mood analyze: {sent}|{mood}|")
@@ -82,7 +87,9 @@ def task_put_sentence_into_queue(
             # if there
             if word_buf:
                 if mood_bot is not None:
-                    mood = mood_bot.get_answer(word_buf, stream=False)
+                    mood = mood_bot.get_answer(
+                        word_buf, stream=False, proxy_url=proxy_url
+                    )
                 else:
                     mood = ""
                 resp_queue.put((word_buf, mood))
@@ -149,7 +156,7 @@ def newchat():
         [bot_preset["welcome_message"]],
         ["高兴"],
         sess_id,
-        baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
+        baseurl=f"{current_app.config['WEBGAL_BACKEND_BASEURL']}/webgal/chat.txt",
         speaker_preset=bot_preset,
         include_input=True,
     )
@@ -185,7 +192,7 @@ def getchat():
             [],
             [],
             sess_id=sess_id,
-            baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
+            baseurl=f"{current_app.config['WEBGAL_BACKEND_BASEURL']}/webgal/chat.txt",
             speaker_preset=bot_preset,
             include_exit=True,
         )
@@ -197,15 +204,24 @@ def getchat():
                 msg_queue.get()
 
             # request a new answer streamable
-            answer_gen = bot.get_answer(prompt, stream=True, sse=False)
+            answer_gen = bot.get_answer(
+                prompt,
+                stream=True,
+                sse=False,
+                proxy_url=current_app.config["PROXY_URL"],
+            )
             scheduler: BackgroundScheduler = current_app.scheduler
 
             # add background task
             # TODO is it possible? out of context?
             mood_bot = current_app.bot.get("mood", None)
+            proxy_url = current_app.config["PROXY_URL"]
             scheduler.add_job(
                 lambda: task_put_sentence_into_queue(
-                    msg_queue, answer_gen, mood_bot=mood_bot
+                    msg_queue,
+                    answer_gen,
+                    mood_bot=mood_bot,
+                    proxy_url=proxy_url,
                 )
             )
 
@@ -228,7 +244,7 @@ def getchat():
             sent_buf,
             mood_buf,
             sess_id=sess_id,
-            baseurl=f"http://{current_app.config['HOST']}:{current_app.config['PORT']}/webgal/chat.txt",
+            baseurl=f"{current_app.config['WEBGAL_BACKEND_BASEURL']}/webgal/chat.txt",
             speaker_preset=bot_preset,
             include_input=include_input,
         )

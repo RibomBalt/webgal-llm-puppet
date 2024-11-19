@@ -1,4 +1,5 @@
 from openai import OpenAI
+import httpx
 from .orm import ChatSession, ChatMessage
 from uuid import UUID
 from flask_sqlalchemy.session import Session
@@ -236,6 +237,7 @@ class ChatBot:
         sse=True,
         extract_chunk=True,
         db_session=None,
+        proxy_url=None,
     ):
         """get answer by interact with bot
         answer would append to history after stream queue is drained (stream=True) or immediately (stream=False)
@@ -265,8 +267,13 @@ class ChatBot:
         model_params = json.loads(self.chat_session.model_params)
 
         logger.debug(f"{message_request}, {model_params}")
+
         client = OpenAI(
-            api_key=self.model_secret["api_key"], base_url=self.model_secret["base_url"]
+            api_key=self.model_secret["api_key"],
+            base_url=self.model_secret["base_url"],
+            http_client=httpx.Client(proxy=proxy_url)
+            if proxy_url is not None
+            else None,
         )
         resp = client.chat.completions.create(
             model=self.model_secret["model"],
