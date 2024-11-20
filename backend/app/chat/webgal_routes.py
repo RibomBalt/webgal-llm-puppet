@@ -272,10 +272,10 @@ def save():
     return {"result": "ok"}
 
 
-@webgal.errorhandler(HTTPException)
+@webgal.errorhandler(IndexError)
 def error(error):
     """
     """
     current_app.logger.error(f"error: {error}")
-    return render_template('error.txt')
+    return Response(render_template('error.txt'), mimetype='text/plain')
     
