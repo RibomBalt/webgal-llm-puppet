@@ -2,7 +2,9 @@ from flask import (
     request,
     current_app,
     Response,
+    render_template
 )
+from werkzeug.exceptions import HTTPException
 from uuid import UUID
 from urllib.parse import unquote
 from queue import Queue, Empty
@@ -17,8 +19,9 @@ from flask_apscheduler.scheduler import BackgroundScheduler
 from . import webgal
 import logging
 
+QUEUE_TIMEOUT = 30
 
-def load_bot(sess_id: str, bot_preset: Preset):
+def load_bot(sess_id: str):
     """find ChatBot object with sess_id in cache/db
     called under context
     """
@@ -26,26 +29,26 @@ def load_bot(sess_id: str, bot_preset: Preset):
         # cache hit
         return current_app.bot.get(sess_id)
     else:
+        # disable db access
+        raise IndexError(f"{sess_id} not in cache")
         # could raise IndexError
-        try:
-            bot = ChatBot.load_from_db(
-                current_app.database.session,
-                sess_id=UUID(sess_id),
-                model_secret=current_app.config["MODEL_SECRETS"],
-            )
-        except IndexError:
-            # so not in cache and db, create it
-            current_app.logger.warning(
-                f"chat session {sess_id} not found both in cache and db, start a new one"
-            )
-            bot = ChatBot.new_from_preset(
-                bot_preset, current_app.config["MODEL_SECRETS"]
-            )
+        # NOTE: if load_bot with sess_id is called by normal usage, the target Bot should be in cache or database
+        # Situations that IndexError could be raised:
+        # - server restart
+        # - cache clear
+        # - manually request this API (maybe malicious)
+        # We can always return a reset scene back to index page
+        
+        # bot = ChatBot.load_from_db(
+        #     current_app.database.session,
+        #     sess_id=UUID(sess_id),
+        #     model_secret=current_app.config["MODEL_SECRETS"],
+        # )
 
-        # so bot is not in cache, add to it with a message queue
-        msg_queue = Queue()
-        current_app.bot[bot.chat_session.id.hex] = (bot, msg_queue)
-        return (bot, msg_queue)
+        # # so bot is not in cache, add to it with a message queue
+        # msg_queue = Queue()
+        # current_app.bot[bot.chat_session.id.hex] = (bot, msg_queue)
+        # return (bot, msg_queue)
 
 
 def task_put_sentence_into_queue(
@@ -55,7 +58,7 @@ def task_put_sentence_into_queue(
     proxy_url: str | None = None,
 ):
     """
-    this is called by apscheduler, and
+    this is called by apscheduler, and without context
     """
     logger = logging.getLogger("bot")
 
@@ -108,7 +111,7 @@ def task_get_sentence_from_queue(msg_queue: Queue, at_least=1):
     sent_buf = []
     mood_buf = []
     for _ in range(at_least):
-        sent, mood = msg_queue.get()
+        sent, mood = msg_queue.get(timeout=QUEUE_TIMEOUT)
         sent_buf.append(sent)
         mood_buf.append(mood)
 
@@ -135,7 +138,7 @@ def newchat():
 
     if "sess_id" in request.args:
         # sess_id provided, try to load from cache or database
-        bot, msg_queue = load_bot(request.args.get("sess_id"), bot_preset)
+        bot, msg_queue = load_bot(request.args.get("sess_id"))
         sess_id = bot.chat_session.id.hex
 
     else:
@@ -149,7 +152,7 @@ def newchat():
     # for a new queue, extract all existing
     # TODO assume no race condition with e.g. two connections from WebGAL frontend
     while not msg_queue.empty():
-        msg_queue.get()
+        msg_queue.get(timeout=QUEUE_TIMEOUT)
 
     script = sentence_mood_to_webgal_scene(
         [bot_preset["welcome_message"]],
@@ -180,12 +183,12 @@ def getchat():
     elif prompt.startswith("再见"):
         mode = "exit"
 
-    bot, msg_queue = load_bot(sess_id=sess_id, bot_preset=bot_preset)
+    bot, msg_queue = load_bot(sess_id=sess_id)
 
     if mode == "exit":
         # if exit, first clear the queue
         while not msg_queue.empty():
-            msg_queue.get()
+            msg_queue.get(timeout=QUEUE_TIMEOUT)
         #
         script = sentence_mood_to_webgal_scene(
             [],
@@ -200,7 +203,7 @@ def getchat():
         if mode == "new_input":
             # with new input, first clear the queue
             while not msg_queue.empty():
-                msg_queue.get()
+                msg_queue.get(timeout=QUEUE_TIMEOUT)
 
             # request a new answer streamable
             answer_gen = bot.get_answer(
@@ -254,7 +257,9 @@ def getchat():
 
 @webgal.route("/save")
 def save():
-    """save all current bots to database"""
+    """save all current bots to database
+    TODO: considering making this a APS task
+    """
     try:
         for bot in current_app.bot.values():
             if isinstance(bot, tuple):
@@ -265,3 +270,12 @@ def save():
         current_app.database.session.commit()
 
     return {"result": "ok"}
+
+
+@webgal.errorhandler(IndexError)
+def error(error):
+    """
+    """
+    current_app.logger.error(f"error: {error}")
+    return Response(render_template('error.txt'), mimetype='text/plain')
+    
