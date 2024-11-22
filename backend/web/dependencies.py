@@ -105,7 +105,11 @@ async def get_lastmood(sess_id: UUID, msg_id: int, cache: Annotated[Cache, Depen
     last_cache_key = f"msgmood:{sess_id.hex}:{msg_id-1}"
     if await cache.exists(last_cache_key):
         last_mood = (await cache.get(last_cache_key)).get("last_mood")
+    elif msg_id == 1:
+        # first mood should be happy
+        last_mood = '高兴'
     else:
+        # choose random
         last_mood = ""
 
     return last_mood

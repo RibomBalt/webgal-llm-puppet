@@ -53,15 +53,9 @@ async def pending_script(
     preset: L2dBotPreset,
     settings: AppSettings,
     preset_name: str,
-    cache: Annotated[Cache, Depends(get_cache)],
+    last_mood: str
 ):
     """ """
-    last_cache_key = f"msgmood:{sess_id.hex}:{msg_id-1}"
-    if await cache.exists(last_cache_key):
-        last_mood = (await cache.get(last_cache_key)).get("last_mood")
-    else:
-        last_mood = ""
-
     motion, expression = preset.random_motion(last_mood).split(":")
     next_jump_url = next_jump_url = (
         f"http://{settings.host}:{settings.port}/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}"
@@ -271,6 +265,7 @@ async def continue_content(
     sess_id: Annotated[UUID, Path()],
     msg_id: Annotated[int, Path()],
     settings: Annotated[AppSettings, Depends(get_settings)],
+    last_mood: Annotated[str, Depends(get_lastmood)],
     cache: Annotated[Cache, Depends(get_cache)],
     preset_name: Annotated[str, Query(alias="bot")] = "sakiko",
 ):
@@ -288,7 +283,7 @@ async def continue_content(
         return await pending_script(
             sess_id=sess_id,
             msg_id=msg_id,
-            cache=cache,
+            last_mood=last_mood,
             preset=preset,
             preset_name=preset_name,
             settings=settings,
