@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.staticfiles import StaticFiles
 # from .chat.orm import db
 # from .chat.bot_agent import ChatBot
 # from .chat import chat as chat_bp, webgal
@@ -34,6 +34,9 @@ def create_app():
         log_setup(logger_name, log_level="DEBUG" if settings.debug else "INFO")
 
     app.include_router(webgal_route)
+    # staticfile in current fastapi 0.115.5 seems buggy on APIrouters
+    # https://github.com/fastapi/fastapi/discussions/9070
+    app.mount("/static", StaticFiles(directory="web/static"), name="static")
 
     # log
     app.state.logger = logging.getLogger("web")

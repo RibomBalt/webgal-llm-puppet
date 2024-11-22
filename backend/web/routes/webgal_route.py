@@ -6,7 +6,6 @@ from fastapi import (
     BackgroundTasks,
 )
 from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from typing import AsyncIterator
 from fastapi.responses import PlainTextResponse
 from typing import Annotated
@@ -22,7 +21,6 @@ from uuid import UUID
 
 webgal_route = APIRouter(prefix="/webgal")
 jinja2_env = jinja2.Environment(loader=jinja2.FileSystemLoader("web/templates"))
-webgal_route.mount("/static", StaticFiles(directory="web/static"), name="static")
 
 
 @webgal_route.get("/")
