@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from typing import AsyncIterator
 from fastapi.responses import PlainTextResponse
 from typing import Annotated
-from ..dependencies import Cache, get_cache, get_chatsession
+from ..dependencies import Cache, get_cache, get_chatsession, get_lastmood
 from ..models.chat import ChatSession
 from ..models.bot import L2dBotPreset
 from ..config import AppSettings, get_settings
@@ -33,6 +33,19 @@ async def health():
 def exit_script():
     return jinja2_env.get_template("error.txt").render()
 
+async def bye_script(preset:L2dBotPreset, last_mood:str = ""):
+    
+    motion, expression = preset.random_motion(last_mood).split(":")
+    template = jinja2_env.get_template("bye.txt")
+    script = template.render(
+        msg = preset.bye_message,
+        motion=motion,
+        expression=expression,
+        l2d_path=preset.live2d_model_path,
+        speaker=preset.speaker,
+    )
+
+    return script
 
 async def pending_script(
     sess_id: UUID,
@@ -105,6 +118,7 @@ async def msg_mood_to_script(
         sess_id=sess_id.hex,
         msg_motion_expression_list=zip(msg_list, motion_list, expression_list),
         l2d_path=preset.live2d_model_path,
+        speaker=preset.speaker,
         next_url=next_jump_url,
         listening=listening,
     )
@@ -130,9 +144,9 @@ async def get_mood_for_sentence(
     mood_bot: ChatSession, prompt: str, settings: AppSettings
 ):
     """get mood for a single sentence, nothing else"""
-    mood_gen = await mood_bot.get_answer_a(
+    mood_gen = (await mood_bot.get_answer_a(
         settings=settings, prompt=prompt, preset_name="mood_analyzer"
-    )
+    ))()
     mood = ""
     async for mood_chunk in mood_gen:
         if mood_chunk is not None:
@@ -262,7 +276,7 @@ async def continue_content(
 ):
     """ """
     cache_key = f"msgmood:{sess_id.hex}:{msg_id}"
-    for _ in range(10):
+    for _ in range(5):
         result_from_cache = await cache.get(cache_key, None)
         if result_from_cache is not None:
             break
@@ -290,6 +304,7 @@ async def chat_llm(
     background_tasks: BackgroundTasks,
     settings: Annotated[AppSettings, Depends(get_settings)],
     cache: Annotated[Cache, Depends(get_cache)],
+    last_mood: Annotated[str, Depends(get_lastmood)],
     sess_id: Annotated[UUID, Path()],
     msg_id: Annotated[int, Path()],
     preset_name: Annotated[str, Query(alias="bot")] = "sakiko",
@@ -299,15 +314,21 @@ async def chat_llm(
     async with get_chatsession(
         sess_id=sess_id, settings=settings, cache=cache, preset_name=preset_name
     ) as bot:
+        preset = settings.bot_preset.get(preset_name)
         if bot is None:
             web_logger.error(f"bot {sess_id} not successful get", exc_info=True)
             return exit_script()
 
-        resp_gen = await bot.get_answer_a(
+        if prompt == '再见':
+            # byebye sakiko
+            web_logger.debug(f"before bye script: {last_mood = }")
+            return await bye_script(preset=preset,last_mood=last_mood)
+
+        resp_gen = (await bot.get_answer_a(
             settings=settings,
             prompt=prompt,
             preset_name=preset_name,
-        )
+        ))(cache=cache)
         web_logger.debug(f"background task for {sess_id}:{msg_id} added")
         background_tasks.add_task(
             task_get_chat_response_and_mood,

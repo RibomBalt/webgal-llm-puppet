@@ -4,7 +4,7 @@ from openai import AsyncOpenAI
 import httpx
 from .bot import BotParams, BotPreset, BotSecret
 from ..config import AppSettings, get_settings
-from ..logger import model_logger
+from ..logger import model_logger, bot_logger
 from uuid import UUID, uuid4
 from datetime import datetime
 from enum import Enum
@@ -16,6 +16,10 @@ class ChatRole(str, Enum):
     system = "system"
     user = "user"
     assistant = "assistant"
+
+class ChatSingleMessage(BaseModel):
+    role: ChatRole
+    content: str
 
 
 class ChatMessage(BaseModel):
@@ -30,7 +34,7 @@ class ChatMessage(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     def export_message(self):
-        return {"role": self.role, "content": self.msg}
+        return ChatSingleMessage.model_validate({"role": self.role, "content": self.msg}).model_dump(mode='json')
 
 
 class ChatSessionMeta(BaseModel):
@@ -48,7 +52,7 @@ class ChatSessionMeta(BaseModel):
 
     def export_system_prompt(self):
         return (
-            {"role": ChatRole.system, "content": self.system_prompt}
+            ChatSingleMessage.model_validate({"role": ChatRole.system, "content": self.system_prompt}).model_dump(mode='json')
             if self.system_prompt
             else None
         )
@@ -144,17 +148,20 @@ class ChatSession(BaseModel):
 
         sess_cache_key = f"session:{sess_id.hex}"
         await cache.set(sess_cache_key, self.meta.model_dump_json())
-        model_logger.debug(f"save to cache: {sess_cache_key}")
+        model_logger.debug(f"session save to cache: {sess_cache_key}")
 
-        msg_to_cache = [
-            (
-                f"history:{sess_id.hex}:{self.meta.current_msg_length + imsg}",
-                self.messages[imsg].model_dump_json(),
-            )
-            for imsg in range(-self.non_cached, 0)
-        ]
-        await cache.multi_set(msg_to_cache)
-        model_logger.debug(f"save to cache: {[pair[0] for pair in msg_to_cache]}")
+        if self.non_cached > 0:
+            # cache.multi_set cannot be called with empty list
+            msg_to_cache = [
+                (
+                    f"history:{sess_id.hex}:{self.meta.current_msg_length + imsg}",
+                    self.messages[imsg].model_dump_json(),
+                )
+                for imsg in range(-self.non_cached, 0)
+            ]
+            await cache.multi_set(msg_to_cache)
+            model_logger.debug(f"msg save to cache: {[pair[0] for pair in msg_to_cache]}")
+        
         self.non_cached = 0
 
         return True
@@ -190,6 +197,7 @@ class ChatSession(BaseModel):
             history.append(msg.export_message())
 
         message_request.extend(history[::-1])
+        bot_logger.debug(f"new chat request: {message_request}")
 
         stream = await client.chat.completions.create(
             model=secret.model,
@@ -198,7 +206,7 @@ class ChatSession(BaseModel):
             **self.meta.llm_params.model_dump(mode="json"),
         )
 
-        async def resp_gen():
+        async def resp_gen(cache=None):
             resp = []
             async for chunk in stream:
                 chunk_piece = chunk.choices[0].delta.content or ""
@@ -206,8 +214,15 @@ class ChatSession(BaseModel):
                 resp.append(chunk_piece)
 
             resp_text = "".join(resp)
+            model_logger.debug(f"resp_gen: before add_message: {resp_text}")
             self.add_message("assistant", resp_text)
+            model_logger.debug(f"resp_gen: after add_message: {resp_text}")
+            
+            if cache is not None:
+                # there are times when this is out of context lifespan, so we have to save again
+                model_logger.debug(f"resp_gen: save to cache: {self.meta.id}, msg={self.meta.current_msg_length}")
+                await self.save_to_redis_cache(cache)
 
             yield None
 
-        return resp_gen()
+        return resp_gen

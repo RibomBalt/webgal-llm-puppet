@@ -93,8 +93,19 @@ def get_chatsession(
 
         yield bot
         # save to cache
-        if save and bot is not None:
+        if save and (bot is not None):
+            web_logger.debug(f"get_chatsession teardown save cache: {bot.meta.id}")
             await bot.save_to_redis_cache(cache=cache)
 
     return get_bot()
 
+async def get_lastmood(sess_id: UUID, msg_id: int, cache: Annotated[Cache, Depends(get_cache)]):
+    """dependable
+    """
+    last_cache_key = f"msgmood:{sess_id.hex}:{msg_id-1}"
+    if await cache.exists(last_cache_key):
+        last_mood = (await cache.get(last_cache_key)).get("last_mood")
+    else:
+        last_mood = ""
+
+    return last_mood
