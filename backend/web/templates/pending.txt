@@ -1,0 +1,4 @@
+setVar:sess={{ sess_id }}
+setVar:rand=random()
+changeFigure:{{l2d_path}} -animationFlag=on {% raw %}-transform={"position":{"y":-250}}{% endraw %} -motion={{motion|default("thinking01", true)}} -expression={{expression|default("thinking02", true)}}
+changeScene:{{next_url}}&rand={rand} -next

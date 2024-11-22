@@ -1,0 +1,7 @@
+{% extends "answer.txt" %}
+{% block endaction %}
+getUserInput:prompt -title=🔊🔊🔊 -buttonText=📞
+changeFigure:{{l2d_path}} {% raw %}-transform={"position":{"y":-250}}{% endraw %} -motion={{listening[0]|default("thinking01", true)}} -expression={{listening[1]|default("thinking02", true)}} -next
+:{prompt} -next
+changeScene:{{next_url}}&p={prompt} -next
+;{% endblock %}

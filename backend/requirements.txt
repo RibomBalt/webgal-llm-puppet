@@ -1,3 +1,9 @@
 openai
 fastapi[standard]
 pytest
+pydantic-settings
+python-dotenv
+PyYAML
+pytest
+redis
+aiocache[redis]

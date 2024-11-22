@@ -58,15 +58,5 @@
         "model_params": {
             "temperature": 1
         }
-    },
-    "mockai": {
-        "model": "mockai",
-        "system_prompt": "",
-        "welcome_message": ""
-    },
-    "deepseek": {
-        "model": "deepseek",
-        "system_prompt": "",
-        "welcome_message": ""
     }
 }
