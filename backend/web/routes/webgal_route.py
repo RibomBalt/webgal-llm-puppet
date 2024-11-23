@@ -135,7 +135,7 @@ async def msg_mood_to_script(
             else "listening",
         }
         cache_key = f"msgmood:{sess_id.hex}:{msg_id}"
-        web_logger.debug(f"caching {result_to_cache} to {cache_key}")
+        web_logger.debug(f"caching message chunk to {cache_key}")
         await cache.set(cache_key, result_to_cache)
 
     return script
@@ -282,7 +282,7 @@ async def continue_content(
     """ """
     preset = settings.bot_preset.get(preset_name)
     cache_key = f"msgmood:{sess_id.hex}:{msg_id}"
-    for _ in range(5):
+    for _ in range(3):
         result_from_cache = await cache.get(cache_key, None)
         if result_from_cache is not None:
             break
@@ -342,6 +342,7 @@ async def chat_llm(
 
         elif prompt == "{prompt}" or pending != '1':
             # prefetching on newchat means the input is still not updated
+            # prefetching URL don't parse templates, so we can distinguish them
             web_logger.debug(f"prefetching on newchat: {sess_id}/{msg_id}")
             next_url = f"http://{settings.host}:{settings.port}/webgal/chat.txt/{sess_id.hex}/{msg_id}?bot={preset_name}"
             return await pending_script(

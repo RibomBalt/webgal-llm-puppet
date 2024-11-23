@@ -60,6 +60,7 @@ TEXT_SPLIT_PUNCTUATIONS = "。？！；\n"
 def text_split_sentence(text: str):
     """split a sentence (returned by LLM) into several sentences that fit WebGAL UI"""
     # split text
+    # TODO sometimes a sentence is too long, consider force splitting even if sentence is not finished
     # remove double newline
     text = text.replace("\n\n", "\n")
     # split by 。or \n
