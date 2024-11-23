@@ -31,12 +31,17 @@ async def health():
 def exit_script():
     return jinja2_env.get_template("error.txt").render()
 
-async def bye_script(preset:L2dBotPreset, last_mood:str = ""):
-    
+
+async def bye_script(preset: L2dBotPreset, last_mood: str = "", bye_message:str=""):
+    # random motion/expression based on last_mood
     motion, expression = preset.random_motion(last_mood).split(":")
+    # if bye message is not given
+    if not bye_message:
+        bye_message = preset.bye_message
+
     template = jinja2_env.get_template("bye.txt")
     script = template.render(
-        msg = preset.bye_message,
+        msg=bye_message,
         motion=motion,
         expression=expression,
         l2d_path=preset.live2d_model_path,
@@ -45,19 +50,23 @@ async def bye_script(preset:L2dBotPreset, last_mood:str = ""):
 
     return script
 
+
 async def pending_script(
     sess_id: UUID,
     msg_id: int,
     preset: L2dBotPreset,
     settings: AppSettings,
     preset_name: str,
-    last_mood: str
+    last_mood: str,
+    next_jump_url: str = "",
 ):
     """ """
     motion, expression = preset.random_motion(last_mood).split(":")
-    next_jump_url = next_jump_url = (
-        f"http://{settings.host}:{settings.port}/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}"
-    )
+    if not next_jump_url:
+        # default next jump
+        next_jump_url = next_jump_url = (
+            f"http://{settings.host}:{settings.port}/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}"
+        )
 
     template = jinja2_env.get_template("pending.txt")
     script = template.render(
@@ -136,9 +145,11 @@ async def get_mood_for_sentence(
     mood_bot: ChatSession, prompt: str, settings: AppSettings
 ):
     """get mood for a single sentence, nothing else"""
-    mood_gen = (await mood_bot.get_answer_a(
-        settings=settings, prompt=prompt, preset_name="mood_analyzer"
-    ))()
+    mood_gen = (
+        await mood_bot.get_answer_a(
+            settings=settings, prompt=prompt, preset_name="mood_analyzer"
+        )
+    )()
     mood = ""
     async for mood_chunk in mood_gen:
         if mood_chunk is not None:
@@ -245,7 +256,7 @@ async def new_session(
         settings=settings, cache=cache, create=True, preset_name=preset_name
     ) as bot:
         preset = settings.bot_preset.get(preset_name)
-        web_logger.debug(f"{settings.bot_preset}, {preset}")
+        web_logger.debug(f"request new bot, preset={preset_name}")
         #
         resp = await msg_mood_to_script(
             settings=settings,
@@ -266,8 +277,10 @@ async def continue_content(
     last_mood: Annotated[str, Depends(get_lastmood)],
     cache: Annotated[Cache, Depends(get_cache)],
     preset_name: Annotated[str, Query(alias="bot")] = "sakiko",
+    pending_counter: Annotated[int, Query(alias='n')] = 0,
 ):
     """ """
+    preset = settings.bot_preset.get(preset_name)
     cache_key = f"msgmood:{sess_id.hex}:{msg_id}"
     for _ in range(5):
         result_from_cache = await cache.get(cache_key, None)
@@ -275,17 +288,24 @@ async def continue_content(
             break
         await asyncio.sleep(0.5)
     else:
-        # TODO return a pending script rather than exit
-        web_logger.debug(f"{cache_key} not hit")
-        preset = settings.bot_preset.get(preset_name)
-        return await pending_script(
-            sess_id=sess_id,
-            msg_id=msg_id,
-            last_mood=last_mood,
-            preset=preset,
-            preset_name=preset_name,
-            settings=settings,
-        )
+        if pending_counter < 10:
+            # return a pending script rather than exit if answer is not ready
+            web_logger.debug(f"req next.txt: {cache_key} not hit")
+            next_jump_url = (
+                f"http://{settings.host}:{settings.port}/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}&n={pending_counter + 1}"
+            )
+            return await pending_script(
+                sess_id=sess_id,
+                msg_id=msg_id,
+                last_mood=last_mood,
+                preset=preset,
+                preset_name=preset_name,
+                settings=settings,
+                next_jump_url=next_jump_url,
+            )
+        else:
+            # fail to hit cache too many times, backend might be down
+            return await bye_script(preset=preset, last_mood=last_mood, bye_message="看来您那里信号很不好呢，我这边先挂了，祝您生活愉快。")
 
     web_logger.debug(f"get a cache result: {result_from_cache}")
 
@@ -300,6 +320,7 @@ async def chat_llm(
     last_mood: Annotated[str, Depends(get_lastmood)],
     sess_id: Annotated[UUID, Path()],
     msg_id: Annotated[int, Path()],
+    pending: Annotated[str, Query(alias="pending")],
     preset_name: Annotated[str, Query(alias="bot")] = "sakiko",
     prompt: Annotated[str, Query(alias="p")] = "",
 ):
@@ -308,20 +329,38 @@ async def chat_llm(
         sess_id=sess_id, settings=settings, cache=cache, preset_name=preset_name
     ) as bot:
         preset = settings.bot_preset.get(preset_name)
+
+        web_logger.debug(f"pending_status: {pending}")
         if bot is None:
             web_logger.error(f"bot {sess_id} not successful get", exc_info=True)
             return exit_script()
 
-        if prompt == '再见':
+        elif prompt == "再见":
             # byebye sakiko
             web_logger.debug(f"before bye script: {last_mood = }")
-            return await bye_script(preset=preset,last_mood=last_mood)
+            return await bye_script(preset=preset, last_mood=last_mood)
 
-        resp_gen = (await bot.get_answer_a(
-            settings=settings,
-            prompt=prompt,
-            preset_name=preset_name,
-        ))(cache=cache)
+        elif prompt == "{prompt}" or pending != '1':
+            # prefetching on newchat means the input is still not updated
+            web_logger.debug(f"prefetching on newchat: {sess_id}/{msg_id}")
+            next_url = f"http://{settings.host}:{settings.port}/webgal/chat.txt/{sess_id.hex}/{msg_id}?bot={preset_name}"
+            return await pending_script(
+                preset=preset,
+                settings=settings,
+                last_mood=last_mood,
+                sess_id=sess_id,
+                msg_id=msg_id,
+                preset_name=preset_name,
+                next_jump_url=next_url,
+            )
+
+        resp_gen = (
+            await bot.get_answer_a(
+                settings=settings,
+                prompt=prompt,
+                preset_name=preset_name,
+            )
+        )(cache=cache)
         web_logger.debug(f"background task for {sess_id}:{msg_id} added")
         background_tasks.add_task(
             task_get_chat_response_and_mood,
