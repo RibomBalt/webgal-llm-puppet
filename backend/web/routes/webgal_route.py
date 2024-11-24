@@ -278,8 +278,11 @@ async def continue_content(
     cache: Annotated[Cache, Depends(get_cache)],
     preset_name: Annotated[str, Query(alias="bot")] = "sakiko",
     pending_counter: Annotated[int, Query(alias='n')] = 0,
+    first_answer: Annotated[int, Query()] = 0,
 ):
-    """ """
+    """
+    first_answer: 1 if redirected by chat.txt (first response), so pending scripts should respond with last_mood "listening"
+    """
     preset = settings.bot_preset.get(preset_name)
     cache_key = f"msgmood:{sess_id.hex}:{msg_id}"
     for _ in range(3):
@@ -372,5 +375,5 @@ async def chat_llm(
             sess_id=sess_id,
         )
 
-    redirect_url = f"/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}"
+    redirect_url = f"/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}&first_answer=1"
     return RedirectResponse(url=redirect_url)
