@@ -2,7 +2,6 @@ from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 from functools import cached_property, lru_cache
 from yaml import safe_load as yaml_load
-import json
 from .models.bot import BotSecret, BotPreset, L2dBotPreset
 
 
@@ -16,7 +15,7 @@ class AppSettings(BaseSettings):
     webgal_baseurl: str = "http://localhost:3000"
     proxy_url: str = ""
     # preset and secrets path
-    llm_secret_json: str = "secrets.json"
+    llm_secret_yml: str = "secrets.yml:secrets.dev.yml"
     llm_preset_yml: str = "system_prompt.yml"
     # cache properties
     redis_host: str = "127.0.0.1"
@@ -44,12 +43,15 @@ class AppSettings(BaseSettings):
 
     @cached_property
     def secret_pool(self) -> dict[str, BotSecret]:
-        with open(self.llm_secret_json, "r") as fp:
-            secrets_obj = json.load(fp)
-
+        """
+        """
         secrets = {}
-        for k, v in secrets_obj.items():
-            secrets[k] = BotSecret.model_validate(v)
+        for secret_fname in self.llm_secret_yml.split(':'):
+            with open(secret_fname, "r") as fp:
+                secrets_obj = yaml_load(fp.read())
+            # shallow merge
+            for k, v in secrets_obj.items():
+                secrets[k] = BotSecret.model_validate(v)
         return secrets
 
 

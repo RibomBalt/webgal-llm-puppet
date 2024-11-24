@@ -3,6 +3,7 @@ prod.env
 dev.env
 
 secrets.json
+secrets.dev.yml
 /.vscode/*
 !/.vscode/launch.json
 

@@ -2,14 +2,14 @@
 
 ## API KEY
 1. 获取一个支持使用python openai库调用的API KEY（我用的deepseek）
-2. 将`secrets.template.json`复制到`secrets.json`，并按格式添加内容：
-   1. 前面的名字：默认为`deepseek`，需要和`system_prompts.json`中`sakiko - model`保持一致
+2. 在`backend/secrets.yml`中，并按格式添加内容：
+   1. 前面的名字：默认为`deepseek`，需要和`system_prompts.yml`中`sakiko - model`保持一致
    2. `model`: 模型内部名，是传入OpenAI客户端的名称，以deepseek为例，应该填`deepseek-chat`
    3. `api_key`: 你的KEY
    4. `base_url`: 你的模型URL
 
 ## 系统提示词 & 定制
-提示词和表情配置等默认保存`backend/system_prompts.yml`中，每一组是一个【预设】（对应到[源码](backend/web/models/bot.py)中即`BotPreset`或者`L2dBotPreset`类）
+提示词、模型参数和表情配置等默认保存`backend/system_prompts.yml`中，每一组是一个【预设】（对应到[源码](backend/web/models/bot.py)中即`BotPreset`或者`L2dBotPreset`类）
 
 其他参数不说自明（懒得写了）。需要特别说明的参数：
 - `mood`: 这个字典项，都是一个表情名称到多个l2d动作/表情代号的字典。表情代号除了`listening`是刚接受用户输入后使用，其他表情都是`mood_analyzer`这个预设的系统提示词返回的信息。程序对每句回复会请求`mood_analyzer`判断这一句的情感倾向，然后找到`mood`中对应项的列表，随机抽取一个作为这句话的动作/表情。
@@ -24,10 +24,6 @@
 
 - `DEBUG`: 设为1可以看到backend的详细日志。如果你需要反馈BUG，记得把这个设为1后附上程序的相关输出。
 - `HOST`, `PORT`: backend绑定的地址端口。目前这两个参数用于生成WebGAL要访问backend的URL地址。
-- `LLM_SECRET_JSON`: 存储大模型API Key的json路径。
-- `LLM_PRESET_YML`: 存储系统提示词的yaml路径。
-- `ENABLE_MOOD`: 未使用。旧版本这个是是否开启情绪模块的开关，现在关不掉。
-- `WEBGAL_BASEURL`: 未使用。旧版本这个是WebGAL实例的地址。
 - `PROXY_URL`: 可选。访问大模型时可以给一个代理，比如`http://127.0.0.1:7890`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_NAMESPACE`(未使用), `REDIS_PASSWORD`: 可选。这几个参数可以让后端用redis缓存，如果没有设置或设置错误，会自动fallback到用一个全局变量字典缓存。
 

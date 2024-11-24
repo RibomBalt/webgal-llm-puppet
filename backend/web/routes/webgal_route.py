@@ -307,7 +307,7 @@ async def continue_content(
             # fail to hit cache too many times, backend might be down
             return await bye_script(preset=preset, last_mood=last_mood, bye_message="看来您那里信号很不好呢，我这边先挂了，祝您生活愉快。")
 
-    web_logger.debug(f"get a cache result: {result_from_cache}")
+    web_logger.debug(f"get a cache result of {sess_id}/{msg_id}")
 
     return result_from_cache.get("script")
 
