@@ -1,4 +1,7 @@
 secrets.json
+secrets.dev.yml
+dev.env
+prod.env
 /.vscode/*
 !/.vscode/launch.json
 
