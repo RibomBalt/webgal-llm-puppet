@@ -51,7 +51,7 @@ async def init_cache():
             {
                 "default": {
                     "cache": "aiocache.SimpleMemoryCache",
-                    "serializer": {"class": "aiocache.serializers.StringSerializer"},
+                    "serializer": {"class": "aiocache.serializers.JsonSerializer"},
                 }
             }
         )
