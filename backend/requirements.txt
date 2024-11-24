@@ -1,9 +1,9 @@
 openai
-flask
-flask-sqlalchemy
-flask_cors
-flask_apscheduler
-cachelib
-transformers
+fastapi[standard]
 pytest
-celery
+pydantic-settings
+python-dotenv
+PyYAML
+pytest
+redis
+aiocache[redis]

@@ -1,0 +1,5 @@
+changeFigure:{{l2d_path}} -animationFlag=on {% raw %}-transform={"position":{"y":-250}}{% endraw %} -motion={{motion|default("thinking01", true)}} -expression={{expression|default("thinking02", true)}} -next
+{{speaker}}:{{msg}}
+changeFigure: -next
+changeBg: -next
+end;
