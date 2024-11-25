@@ -1,4 +1,5 @@
 from pydantic import BaseModel, constr
+from .voice import VoicePreset
 from ..logger import model_logger
 import random
 
@@ -36,6 +37,7 @@ class L2dBotPreset(BotPreset):
     live2d_model_path: str
     mood: dict[str, list[constr(pattern="^[a-zA-Z0-9]+?\\:[a-zA-Z0-9]+?$")]]
     bye_message: str = ""
+    voice: VoicePreset | None = None
 
     def random_motion(self, test_mood: str = None):
         """choose a set of motion (motion:expression to be exact)

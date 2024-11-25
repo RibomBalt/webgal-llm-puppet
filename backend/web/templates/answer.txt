@@ -2,8 +2,9 @@ setVar:sess={{ sess_id }}
 setVar:prompt=
 setVar:pending=0
 changeBg:N（主角相关工作地点）/N9.jpg -next
-{% for sent, motion, expression in msg_motion_expression_list %}
+{% for sent, motion, expression, voice in msg_motion_expression_list %}
 changeFigure:{{l2d_path}} -animationFlag=on {% raw %}-transform={"position":{"y":-250}}{% endraw %} -motion={{motion|default("thinking01", true)}} -expression={{expression|default("thinking02", true)}} -next;
+playEffect:{{voice}} -next;
 {{ speaker }}:{{ sent|safe }} -center
 {% endfor %}
 ;{% block endaction %}

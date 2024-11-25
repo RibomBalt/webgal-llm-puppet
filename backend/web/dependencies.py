@@ -31,7 +31,7 @@ async def init_cache():
                     "port": settings.redis_port,
                     "password": settings.redis_password,
                     "timeout": 1,
-                    "serializer": {"class": "aiocache.serializers.JsonSerializer"},
+                    "serializer": {"class": "aiocache.serializers.MsgPackSerializer"},
                     "plugins": [],
                 }
             }
@@ -51,7 +51,7 @@ async def init_cache():
             {
                 "default": {
                     "cache": "aiocache.SimpleMemoryCache",
-                    "serializer": {"class": "aiocache.serializers.JsonSerializer"},
+                    "serializer": {"class": "aiocache.serializers.MsgPackSerializer"},
                 }
             }
         )

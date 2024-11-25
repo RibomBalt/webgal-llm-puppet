@@ -1,9 +1,13 @@
 openai
 fastapi[standard]
 pytest
+pytest-asyncio
 pydantic-settings
 python-dotenv
 PyYAML
 pytest
 redis
 aiocache[redis]
+msgpack
+ormsgpack
+edge-tts

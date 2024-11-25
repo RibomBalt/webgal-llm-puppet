@@ -4,6 +4,8 @@ from fastapi import (
     Query,
     Depends,
     BackgroundTasks,
+    HTTPException,
+    Response
 )
 from fastapi.responses import RedirectResponse
 from typing import AsyncIterator
@@ -15,8 +17,10 @@ from ..models.bot import L2dBotPreset
 from ..config import AppSettings, get_settings
 from ..logger import web_logger
 from ..webgal_utils import TEXT_SPLIT_PUNCTUATIONS, text_split_sentence
+from ..tts import tts
 import jinja2
 import asyncio
+import hashlib
 from uuid import UUID
 
 webgal_route = APIRouter(prefix="/webgal")
@@ -80,6 +84,13 @@ async def pending_script(
     return script
 
 
+def get_voice_cachekey(sess_id: str, msg: str = '', length=12, hash=None):
+    if hash is None:
+        hash = hashlib.md5(msg.encode()).hexdigest()[:length]
+
+    return f"voice:{sess_id}:{hash}"
+
+
 async def msg_mood_to_script(
     settings: Annotated[AppSettings, Depends(get_settings)],
     sess_id: UUID,
@@ -96,11 +107,23 @@ async def msg_mood_to_script(
     msg_list = []
     motion_list = []
     expression_list = []
+    voice_list = []
     for msg, mood in msg_mood_list:
         msg_list.append(msg)
         motion, expression = preset.random_motion(mood).split(":")
         motion_list.append(motion)
         expression_list.append(expression)
+
+        # we put tts while processing every sentences (normally there would be only one)
+        voice_content = await tts(msg, preset.voice)
+        # TODO make a null sound
+        voice_cachekey = get_voice_cachekey(msg=msg, sess_id=sess_id.hex)
+        if voice_content and (cache is not None):
+            await cache.set(voice_cachekey, voice_content)
+            web_logger.debug(f"tts cached: {voice_cachekey}")
+
+        voice_url = f"http://{settings.host}:{settings.port}/webgal/voice.mp3/{sess_id.hex}/{voice_cachekey.split(':', maxsplit=2)[2]}"
+        voice_list.append(voice_url)
 
     if require_input:
         this_template = "new_input.txt"
@@ -117,7 +140,7 @@ async def msg_mood_to_script(
     template = jinja2_env.get_template(this_template)
     script = template.render(
         sess_id=sess_id.hex,
-        msg_motion_expression_list=zip(msg_list, motion_list, expression_list),
+        msg_motion_expression_list=zip(msg_list, motion_list, expression_list, voice_list),
         l2d_path=preset.live2d_model_path,
         speaker=preset.speaker,
         next_url=next_jump_url,
@@ -157,6 +180,7 @@ async def get_mood_for_sentence(
         else:
             break
 
+    web_logger.debug(f"mood query: {prompt}|{mood}|")
     return mood
 
 
@@ -261,8 +285,10 @@ async def new_session(
         resp = await msg_mood_to_script(
             settings=settings,
             sess_id=bot.meta.id,
-            msg_mood_list=[(preset.welcome_message, next(iter(preset.mood.keys())))],
+            msg_mood_list=[(preset.welcome_message, '高兴')],
             msg_id=0,
+            cache=cache,
+            preset_name=preset_name,
             require_input=True,
         )
 
@@ -285,7 +311,7 @@ async def continue_content(
     """
     preset = settings.bot_preset.get(preset_name)
     cache_key = f"msgmood:{sess_id.hex}:{msg_id}"
-    for _ in range(3):
+    for _ in range(5):
         result_from_cache = await cache.get(cache_key, None)
         if result_from_cache is not None:
             break
@@ -377,3 +403,22 @@ async def chat_llm(
 
     redirect_url = f"/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}&first_answer=1"
     return RedirectResponse(url=redirect_url)
+
+@webgal_route.get("/voice.mp3/{sess_id}/{voice_key}")
+async def get_voice_file(
+    sess_id: Annotated[UUID, Path()],
+    voice_key: Annotated[str, Path()],
+    settings: Annotated[AppSettings, Depends(get_settings)],
+    cache: Annotated[Cache, Depends(get_cache)],
+):
+    """
+    """
+    # since we put voice in cache before we respond scripts, we won't wait for voice to be available
+    cache_key = get_voice_cachekey(hash=voice_key, sess_id=sess_id.hex)
+    result_from_cache = await cache.get(cache_key, None)
+    if result_from_cache is not None:
+        web_logger.debug(f"tts cache hit: {cache_key}")
+        return Response(content=result_from_cache, media_type="audio/mpeg")
+    else:
+        web_logger.debug(f"tts fail to hit: {cache_key}")
+        raise HTTPException(404, f"voice {cache_key} not found")
