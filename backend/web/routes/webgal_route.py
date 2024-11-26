@@ -371,19 +371,12 @@ async def chat_llm(
             return await bye_script(preset=preset, last_mood=last_mood)
 
         elif prompt == "{prompt}" or pending != '1':
-            # prefetching on newchat means the input is still not updated
+            # NOTE: this branch only occur in WebGAL prefetching without templates
             # prefetching URL don't parse templates, so we can distinguish them
+            # ASSERT this script is never parsed by WebGAL because of `pending`
+            # so we just return an exit scripts
             web_logger.debug(f"prefetching on newchat: {sess_id}/{msg_id}")
-            next_url = f"http://{settings.host}:{settings.port}/webgal/chat.txt/{sess_id.hex}/{msg_id}?bot={preset_name}"
-            return await pending_script(
-                preset=preset,
-                settings=settings,
-                last_mood=last_mood,
-                sess_id=sess_id,
-                msg_id=msg_id,
-                preset_name=preset_name,
-                next_jump_url=next_url,
-            )
+            return exit_script()
 
         resp_gen = (
             await bot.get_answer_a(

@@ -1,80 +1,79 @@
 import pytest
-import requests
+import httpx
 import subprocess
 import signal
 import os
 import time
 import sys
+from urllib.parse import quote
+from fastapi.testclient import TestClient
+from .. import create_app
+from ..dependencies import init_cache
 
 
-MODEL = os.environ.get("MODEL", "mockai")
+# MODEL = os.environ.get("MODEL", "mockai")
 
 
-@pytest.fixture(scope="module")
-def start_mockai():
-    if MODEL == "mockai":
-        mockai = subprocess.Popen(
-            ["npm", "start"], cwd="../mockai", preexec_fn=os.setpgrp
-        )
-        print(f"::mockai start, pid={mockai.pid}")
-        time.sleep(1)
+# @pytest.fixture(scope="module")
+# def start_mockai():
+#     if MODEL == "mockai":
+#         mockai = subprocess.Popen(
+#             ["npm", "start"], cwd="../mockai", preexec_fn=os.setpgrp
+#         )
+#         print(f"::mockai start, pid={mockai.pid}")
+#         time.sleep(1)
 
-    yield
+#     yield
 
-    if (MODEL == "mockai") and (mockai.poll() is None):
-        os.killpg(os.getpgid(mockai.pid), signal.SIGTERM)
-        print("::mockai end")
+#     if (MODEL == "mockai") and (mockai.poll() is None):
+#         os.killpg(os.getpgid(mockai.pid), signal.SIGTERM)
+#         print("::mockai end")
 
-
-@pytest.fixture(scope="module")
-def start_app():
-    app = subprocess.Popen(
-        [sys.executable, "app.py"],
-        cwd=".",
-        preexec_fn=os.setpgrp,
-        env={
-            "DEBUG": "1",
-            "MODEL_NAME": MODEL,
-            "PORT": "10228",
-            "SQLITE_URI": "sqlite://",
-        },
+def get_change_scene_url(scene: str):
+    change_scene_line = next(
+        line
+        for line in scene.splitlines(keepends=False)
+        if line.startswith("changeScene:")
     )
-    print(f"::main app, pid={app.pid}")
-    time.sleep(1)
-
-    yield
-
-    if app.poll() is None:
-        os.killpg(os.getpgid(app.pid), signal.SIGTERM)
-        print("::main app end")
+    change_scene_url = change_scene_line.split(':', maxsplit=1)[1].split(' ')[0]
+    return change_scene_url
 
 
-def test_chat(start_app, start_mockai):
+def test_webgal():
     """ """
-    APP_HOST = "http://localhost:10228"
+    with TestClient(create_app()) as client:
 
-    # empty
-    assert not requests.get(f"{APP_HOST}/chat_sessions").json()
+        # health
+        resp = client.get("/webgal")
+        assert resp.status_code == 200
 
-    resp = requests.put(
-        f"{APP_HOST}/chat_sessions",
-        json={
-            "secret_key": MODEL,
-            "system_prompt": "Act as a cute little catgirl.",
-            "model_params": {"temperature": 1.5},
-        },
-    ).json()
+        # create chat
+        resp = client.get("/webgal/newchat.txt?bot=sakiko")
+        assert resp.status_code == 200
 
-    sess_id = resp["session_id"]
+        # not fill in templates, simulating prefetching
+        next_url_path = get_change_scene_url(resp.text)
+        assert 'chat.txt' in next_url_path
+        resp = client.get(next_url_path)
+        assert resp.status_code == 200
 
-    resp = requests.post(
-        f"{APP_HOST}/chat",
-        json={
-            "session_id": sess_id,
-            "user_prompt": "Hello, how are you today?",
-        },
-        stream=True,
-    )
+        # still chat.txt, but template is filled
+        next_url_path = next_url_path.replace('{prompt}', '你好').replace('{pending}','1')
+        resp = client.get(next_url_path)
+        assert resp.status_code == 200, next_url_path
 
-    for chunk in resp.iter_lines(512):
-        print(chunk)
+        next_url_path = get_change_scene_url(resp.text)
+        while 'next.txt' in next_url_path:
+            time.sleep(1)
+            resp = client.get(next_url_path)
+            assert resp.status_code == 200, next_url_path
+            next_url_path = get_change_scene_url(resp.text)
+            
+        assert 'chat.txt' in next_url_path
+
+
+
+
+
+
+    
