@@ -21,6 +21,7 @@ from ..tts import tts
 import jinja2
 import asyncio
 import hashlib
+import base64
 from uuid import UUID
 
 webgal_route = APIRouter(prefix="/webgal")
@@ -119,7 +120,7 @@ async def msg_mood_to_script(
         # TODO make a null sound
         voice_cachekey = get_voice_cachekey(msg=msg, sess_id=sess_id.hex)
         if voice_content and (cache is not None):
-            await cache.set(voice_cachekey, voice_content)
+            await cache.set(voice_cachekey, base64.a85encode(voice_content).decode())
             web_logger.debug(f"tts cached: {voice_cachekey}")
 
         voice_url = f"http://{settings.host}:{settings.port}/webgal/voice.mp3/{sess_id.hex}/{voice_cachekey.split(':', maxsplit=2)[2]}"
@@ -418,7 +419,7 @@ async def get_voice_file(
     result_from_cache = await cache.get(cache_key, None)
     if result_from_cache is not None:
         web_logger.debug(f"tts cache hit: {cache_key}")
-        return Response(content=result_from_cache, media_type="audio/mpeg")
+        return Response(content=base64.a85decode(result_from_cache.encode()), media_type="audio/mpeg")
     else:
         web_logger.debug(f"tts fail to hit: {cache_key}")
         raise HTTPException(404, f"voice {cache_key} not found")
