@@ -16,7 +16,7 @@ class AppSettings(BaseSettings):
     proxy_url: str = ""
     # preset and secrets path
     llm_secret_yml: str = "secrets.yml:secrets.dev.yml"
-    llm_preset_yml: str = "system_prompt.yml"
+    llm_preset_yml: str = "system_prompt.yml:system_prompt.dev.yml"
     # cache properties
     redis_host: str = "127.0.0.1"
     redis_port: int = 6379
@@ -27,17 +27,19 @@ class AppSettings(BaseSettings):
 
     @cached_property
     def bot_preset(self) -> dict[str, BotPreset | L2dBotPreset]:
-        with open(self.llm_preset_yml, "r") as fp:
-            sys_prompt_yml: dict = yaml_load(fp.read())
-
+        """
+        """
         bot_presets = {}
-        for k, v in sys_prompt_yml.items():
-            if "live2d_model_path" in v:
-                bot = L2dBotPreset.model_validate(v)
-            else:
-                bot = BotPreset.model_validate(v)
+        for preset_file_name in self.llm_preset_yml.split(':'):
+            with open(preset_file_name, "r") as fp:
+                sys_prompt_yml: dict = yaml_load(fp.read())
+            for k, v in sys_prompt_yml.items():
+                if "live2d_model_path" in v:
+                    bot = L2dBotPreset.model_validate(v)
+                else:
+                    bot = BotPreset.model_validate(v)
 
-            bot_presets[k] = bot
+                bot_presets[k] = bot
 
         return bot_presets
 

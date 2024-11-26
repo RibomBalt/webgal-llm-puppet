@@ -1,5 +1,6 @@
 secrets.json
 secrets.dev.yml
+system_prompt.dev.yml
 dev.env
 prod.env
 /.vscode/*

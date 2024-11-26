@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 import logging
 from .logger import log_setup
 from .routes.webgal_route import webgal_route
+from .routes.api import api_route
 from .config import get_settings
 from .dependencies import init_cache
 from contextlib import asynccontextmanager
@@ -34,6 +35,7 @@ def create_app():
         log_setup(logger_name, log_level="DEBUG" if settings.debug else "INFO")
 
     app.include_router(webgal_route)
+    app.include_router(api_route)
     # staticfile in current fastapi 0.115.5 seems buggy on APIrouters
     # https://github.com/fastapi/fastapi/discussions/9070
     app.mount("/static", StaticFiles(directory="web/static"), name="static")
