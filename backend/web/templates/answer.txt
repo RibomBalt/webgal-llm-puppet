@@ -5,8 +5,8 @@ changeBg:{{bg_pic}} -next
 {% for sent, motion, expression, voice in msg_motion_expression_list %}
 changeFigure:{{l2d_path}} -animationFlag=on {% raw %}-transform={"position":{"y":-250}}{% endraw %} -motion={{motion|default("thinking01", true)}} -expression={{expression|default("thinking02", true)}} -next;
 playEffect:{{voice}} -next;
-;    {% for isent in range(0, sent|length, 60) %}
-{{ speaker }}:{{ sent[isent:isent+60]|safe }} -center
+;    {% for isent in range(0, sent|length, 72) %}
+{{ speaker }}:{{ sent[isent:isent+72]|safe }} -center
 ;    {% endfor %}
 {% endfor %}
 ;{% block endaction %}
