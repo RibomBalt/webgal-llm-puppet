@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse
 from typing import AsyncIterator
 from fastapi.responses import PlainTextResponse
 from typing import Annotated
-from ..dependencies import Cache, get_cache, get_chatsession, get_lastmood
+from ..dependencies import Cache, get_cache, get_chatsession, get_lastmood, depend_chat_session, depend_chat_session_new, depend_chat_session_onetime
 from ..models.chat import ChatSession
 from ..models.bot import L2dBotPreset
 from ..config import AppSettings, get_settings
@@ -195,8 +195,8 @@ async def get_mood_for_sentence(
 
 async def task_get_chat_response_and_mood(
     resp_gen: AsyncIterator[str | None],
-    settings: Annotated[AppSettings, Depends(get_settings)],
-    cache: Annotated[Cache, Depends(get_cache)],
+    settings: AppSettings,
+    cache: Cache,
     msg_id: int,
     sess_id: UUID,
 ):
@@ -288,26 +288,27 @@ async def task_get_chat_response_and_mood(
 async def new_session(
     settings: Annotated[AppSettings, Depends(get_settings)],
     cache: Annotated[Cache, Depends(get_cache)],
+    bot: Annotated[ChatSession, Depends(depend_chat_session_new)],
     preset_name: Annotated[str, Query(alias="bot")] = "sakiko",
 ):
     """create a new chat
     preset_name: can choose a specific preset
     """
-    async with get_chatsession(
-        settings=settings, cache=cache, create=True, preset_name=preset_name
-    ) as bot:
-        preset = settings.bot_preset.get(preset_name)
-        web_logger.debug(f"request new bot, preset={preset_name}")
-        #
-        resp = await msg_mood_to_script(
-            settings=settings,
-            sess_id=bot.meta.id,
-            msg_mood_list=[(preset.welcome_message, '高兴')],
-            msg_id=0,
-            cache=cache,
-            preset_name=preset_name,
-            require_input=True,
-        )
+    # async with get_chatsession(
+    #     settings=settings, cache=cache, create=True, preset_name=preset_name
+    # ) as bot:
+    preset = settings.bot_preset.get(preset_name)
+    web_logger.debug(f"request new bot, preset={preset_name}")
+    #
+    resp = await msg_mood_to_script(
+        settings=settings,
+        sess_id=bot.meta.id,
+        msg_mood_list=[(preset.welcome_message, '高兴')],
+        msg_id=0,
+        cache=cache,
+        preset_name=preset_name,
+        require_input=True,
+    )
 
     return resp
 
@@ -364,6 +365,7 @@ async def chat_llm(
     settings: Annotated[AppSettings, Depends(get_settings)],
     cache: Annotated[Cache, Depends(get_cache)],
     last_mood: Annotated[str, Depends(get_lastmood)],
+    bot: Annotated[ChatSession, Depends(depend_chat_session)],
     sess_id: Annotated[UUID, Path()],
     msg_id: Annotated[int, Path()],
     pending: Annotated[str, Query(alias="pending")],
@@ -371,45 +373,45 @@ async def chat_llm(
     prompt: Annotated[str, Query(alias="p")] = "",
 ):
     """talk with bot, add background task to fill caches, return a pending"""
-    async with get_chatsession(
-        sess_id=sess_id, settings=settings, cache=cache, preset_name=preset_name
-    ) as bot:
-        preset = settings.bot_preset.get(preset_name)
+    # async with get_chatsession(
+    #     sess_id=sess_id, settings=settings, cache=cache, preset_name=preset_name
+    # ) as bot:
+    preset = settings.bot_preset.get(preset_name)
 
-        web_logger.debug(f"pending_status: {pending}")
-        if bot is None:
-            web_logger.error(f"bot {sess_id} not successful get", exc_info=True)
-            return exit_script()
+    web_logger.debug(f"pending_status: {pending}")
+    if bot is None:
+        web_logger.error(f"bot {sess_id} not successful get", exc_info=True)
+        return exit_script()
 
-        elif prompt == "再见":
-            # byebye sakiko
-            web_logger.debug(f"before bye script: {last_mood = }")
-            return await bye_script(preset=preset, last_mood=last_mood)
+    elif prompt == "再见":
+        # byebye sakiko
+        web_logger.debug(f"before bye script: {last_mood = }")
+        return await bye_script(preset=preset, last_mood=last_mood)
 
-        elif prompt == "{prompt}" or pending != '1':
-            # NOTE: this branch only occur in WebGAL prefetching without templates
-            # prefetching URL don't parse templates, so we can distinguish them
-            # ASSERT this script is never parsed by WebGAL because of `pending`
-            # so we just return an exit scripts
-            web_logger.debug(f"prefetching on newchat: {sess_id}/{msg_id}")
-            return exit_script()
+    elif prompt == "{prompt}" or pending != '1':
+        # NOTE: this branch only occur in WebGAL prefetching without templates
+        # prefetching URL don't parse templates, so we can distinguish them
+        # ASSERT this script is never parsed by WebGAL because of `pending`
+        # so we just return an exit scripts
+        web_logger.debug(f"prefetching on newchat: {sess_id}/{msg_id}")
+        return exit_script()
 
-        resp_gen = (
-            await bot.get_answer_a(
-                settings=settings,
-                prompt=prompt,
-                preset_name=preset_name,
-            )
-        )(cache=cache)
-        web_logger.debug(f"background task for {sess_id}:{msg_id} added")
-        background_tasks.add_task(
-            task_get_chat_response_and_mood,
-            resp_gen=resp_gen,
+    resp_gen = (
+        await bot.get_answer_a(
             settings=settings,
-            cache=cache,
-            msg_id=msg_id,
-            sess_id=sess_id,
+            prompt=prompt,
+            preset_name=preset_name,
         )
+    )(cache=cache)
+    web_logger.debug(f"background task for {sess_id}:{msg_id} added")
+    background_tasks.add_task(
+        task_get_chat_response_and_mood,
+        resp_gen=resp_gen,
+        settings=settings,
+        cache=cache,
+        msg_id=msg_id,
+        sess_id=sess_id,
+    )
 
     redirect_url = f"/webgal/next.txt/{sess_id.hex}/{msg_id}?bot={preset_name}&first_answer=1"
     return RedirectResponse(url=redirect_url)

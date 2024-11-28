@@ -1,6 +1,6 @@
 """All dependencies are called by route, under context"""
 
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 from typing_extensions import Annotated
 from fastapi import Depends, Query
 from aiocache import Cache, caches
@@ -64,22 +64,27 @@ def get_cache() -> Cache:
     return caches.get("default")
 
 
-def get_chatsession(
-    cache: Annotated[Cache, Depends(get_cache)],
-    settings: Annotated[AppSettings, Depends(get_settings)],
-    sess_id: UUID = None,
-    preset_name: str = "sakiko",
-    max_history: int = 30,
-    create=False,
-    save=True,
-):
-    """return a async context manager that return a ChatSession object.
-    either create a new one or load from cache, and save back to cache afterwards
-    """
+class DependChatSession:
+    """TODO use this instead of get_chatseesion"""
 
-    @asynccontextmanager
-    async def get_bot() -> AsyncIterator[ChatSession | None]:
-        """ """
+    def __init__(
+        self,
+        create=False,
+        save=True,
+    ) -> None:
+        self.create = create
+        self.save = save
+
+    async def __call__(
+        self,
+        cache: Annotated[Cache, Depends(get_cache)],
+        settings: Annotated[AppSettings, Depends(get_settings)],
+        sess_id: UUID = UUID("0" * 32),
+        preset_name: str = "sakiko",
+        max_history: int = 30,
+    ) -> Any:
+        create = self.create
+        save = self.save
         if create or sess_id is None:
             # new sess
             bot = ChatSession.from_preset(settings.bot_preset.get(preset_name))
@@ -99,6 +104,38 @@ def get_chatsession(
             web_logger.debug(f"get_chatsession teardown save cache: {bot.meta.id}")
             await bot.save_to_redis_cache(cache=cache)
 
+
+depend_chat_session = DependChatSession(create=False, save=True)
+depend_chat_session_nosave = DependChatSession(create=False, save=False)
+depend_chat_session_new = DependChatSession(create=True, save=True)
+depend_chat_session_onetime = DependChatSession(create=True, save=False)
+
+
+def get_chatsession(
+    cache: Annotated[Cache, Depends(get_cache)],
+    settings: Annotated[AppSettings, Depends(get_settings)],
+    sess_id: UUID = None,
+    preset_name: str = "sakiko",
+    max_history: int = 30,
+    create=False,
+    save=True,
+):
+    """return a async context manager that return a ChatSession object.
+    either create a new one or load from cache, and save back to cache afterwards
+    """
+
+    @asynccontextmanager
+    async def get_bot() -> AsyncIterator[ChatSession | None]:
+        """ """
+        async for bot in DependChatSession(create=create, save=save)(
+            cache=cache,
+            settings=settings,
+            sess_id=sess_id,
+            preset_name=preset_name,
+            max_history=max_history,
+        ):
+            yield bot
+
     return get_bot()
 
 
@@ -111,7 +148,7 @@ async def get_lastmood(
     """dependable"""
     last_cache_key = f"msgmood:{sess_id.hex}:{msg_id-1}"
     if first_answer == 1:
-        last_mood = 'listening'
+        last_mood = "listening"
     # elif msg_id == 1:
     #     # first mood should be happy
     #     last_mood = "高兴"
