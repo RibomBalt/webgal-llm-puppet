@@ -1,4 +1,5 @@
 import logging
+import re
 
 logger = logging.getLogger("bot")
 
@@ -56,24 +57,35 @@ logger = logging.getLogger("bot")
 
 TEXT_SPLIT_PUNCTUATIONS = "。？！；\n"
 
+# match a sentence 
+match_first_sentence = re.compile(r'^((（[^）]+?）)|(([^。？！（；\n]*?[。？！；\n]+)))')
+match_parathesis = re.compile(r'（[^）]+?）')
 
 def text_split_sentence(text: str):
-    """split a sentence (returned by LLM) into several sentences that fit WebGAL UI"""
+    """split a sentence (returned by LLM) into several sentences that fit WebGAL UI
+    
+    splitting rules:
+    - sentence ends with `TEXT_SPLIT_PUNCTUATIONS` or newline
+    - consecutive punctuations are allowed in one sentence
+    - ignore punctuations within （）
+    """
     # split text
     # TODO sometimes a sentence is too long, consider force splitting even if sentence is not finished
     # remove double newline
     text = text.replace("\n\n", "\n")
     # split by 。or \n
     sentence_buf = []
-    c_marker = 0
-    for i_c, c in enumerate(text):
-        # better split sentence
-        if c in TEXT_SPLIT_PUNCTUATIONS:
-            # discard consecutive punctuations
-            if i_c > c_marker:
-                sentence_buf.append(text[c_marker : i_c + 1].strip())
-                c_marker = i_c + 1
-    if c_marker < len(text) - 1:
-        sentence_buf.append(text[c_marker:].strip())
 
+    while (m := match_first_sentence.match(text)):
+        first_sent, text = text[:m.end(0)], text[m.end(0):]
+        sentence_buf.append(first_sent)
+    
+    if text:
+        sentence_buf.append(text)
     return sentence_buf
+
+
+def remove_parathesis(sentence:str, replace=''):
+    """remove （）from sentence
+    """
+    return match_parathesis.sub(replace, sentence)

@@ -16,7 +16,7 @@ from ..models.chat import ChatSession
 from ..models.bot import L2dBotPreset
 from ..config import AppSettings, get_settings
 from ..logger import web_logger
-from ..webgal_utils import TEXT_SPLIT_PUNCTUATIONS, text_split_sentence
+from ..webgal_utils import TEXT_SPLIT_PUNCTUATIONS, text_split_sentence, remove_parathesis
 from ..tts import tts
 import jinja2
 import asyncio
@@ -116,7 +116,14 @@ async def msg_mood_to_script(
         expression_list.append(expression)
 
         # we put tts while processing every sentences (normally there would be only one)
-        voice_content = await tts(msg, preset.voice)
+        # （）represent mental activity, so stripped off
+        msg_aloud = remove_parathesis(msg, replace='……')
+        if msg_aloud:
+            voice_content = await tts(msg_aloud, preset.voice)
+        else:
+            # won't get voice for empty message
+            voice_content = None
+
         # TODO make a null sound
         voice_cachekey = get_voice_cachekey(msg=msg, sess_id=sess_id.hex)
         if voice_content and (cache is not None):
@@ -146,6 +153,7 @@ async def msg_mood_to_script(
         speaker=preset.speaker,
         next_url=next_jump_url,
         listening=listening,
+        bg_pic=preset.bg_picture_path,
     )
 
     web_logger.debug(f"generate {sess_id}/{msg_id}:\n{script}")
@@ -211,37 +219,45 @@ async def task_get_chat_response_and_mood(
                 continue
 
             remn_text += chunk
-            # test whether we should split
-            # we use this because this is slightly quicker than actually try to split it
-            if any(c in TEXT_SPLIT_PUNCTUATIONS for c in chunk):
-                sentences = text_split_sentence(remn_text)
-                for sent in sentences[:-1]:
-                    # each sent is a complete sentence
-                    # here we block the mood analyzer (since this is threaded background)
-                    if mood_bot is not None:
-                        mood = await get_mood_for_sentence(
-                            prompt=sent, settings=settings, mood_bot=mood_bot
-                        )
+            
+            if len(remn_text) < 20:
+                # only process long sentences
+                # remnant text would be treated as a single sentence
+                continue
 
-                    else:
-                        # this is a fallback for bot returning invalid mood
-                        mood = ""
+            # we can always check if we have to split
+            sentences = text_split_sentence(remn_text)
+            for sent in sentences[:-1]:
+                # sometimes there are empty sentence, we don't process them
+                if not sent.strip():
+                    continue
 
-                    web_logger.debug(f"mood analyze: {sent}|{mood}|")
-                    # now we have a set of sent, mood for next round, send them to next
-                    # TODO now send to cache every sentence, should we batch it?
-                    await msg_mood_to_script(
-                        settings=settings,
-                        sess_id=sess_id,
-                        msg_mood_list=[(sent, mood)],
-                        msg_id=msg_id,
-                        require_input=False,
-                        cache=cache,
+                # each sent is a complete sentence
+                # here we block the mood analyzer (since this is threaded background)
+                if mood_bot is not None:
+                    mood = await get_mood_for_sentence(
+                        prompt=sent, settings=settings, mood_bot=mood_bot
                     )
-                    msg_id += 1
 
-                # last sentence might be not complete
-                remn_text = sentences[-1]
+                else:
+                    # this is a fallback for bot returning invalid mood
+                    mood = ""
+
+                web_logger.debug(f"mood analyze: {sent}|{mood}|")
+                # now we have a set of sent, mood for next round, send them to next
+                # TODO now send to cache every sentence, should we batch it?
+                await msg_mood_to_script(
+                    settings=settings,
+                    sess_id=sess_id,
+                    msg_mood_list=[(sent, mood)],
+                    msg_id=msg_id,
+                    require_input=False,
+                    cache=cache,
+                )
+                msg_id += 1
+
+            # last sentence might be not complete
+            remn_text = sentences[-1]
 
         # now remn text might still be non empty
         if remn_text:

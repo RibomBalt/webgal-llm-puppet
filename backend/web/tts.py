@@ -1,4 +1,5 @@
 import httpx
+
 try:
     import edge_tts
 except ImportError:
@@ -41,15 +42,31 @@ async def fish_tts(text: str, voice_preset: VoicePreset):
     return resp.content
 
 
+async def online_mahiruoshi_api(text: str, speaker: str):
+    URL = f"https://mahiruoshi-bert-vits2-api.hf.space/?text={text}&speaker={speaker}"
+
+    settings = get_settings()
+
+    bot_logger.debug(f"get voice from {URL}")
+    proxy_url = settings.proxy_url if settings.proxy_url != "" else None
+    async with httpx.AsyncClient(proxy=proxy_url, timeout=20) as client:
+        resp = await client.get(URL)
+
+        bot_logger.debug(f"get voice status: {resp.status_code}")
+
+    return resp.content
+
+
 async def edge_run_tts(text: str, voice_preset: VoicePreset):
     # TODO validate first
     voice_line = voice_preset.voice_line
-    if not voice_line.startswith(('zh-', 'jp-')):
+    if not voice_line.startswith(("zh-", "jp-")):
         # basic check on tts voice name
-        voice_line = 'zh-CN-XiaoyiNeural'
+        voice_line = "zh-CN-XiaoyiNeural"
 
-    communicate = edge_tts.Communicate(text, voice_line, rate="+30%", pitch='-10Hz')
+    communicate = edge_tts.Communicate(text, voice_line, rate="+30%", pitch="-10Hz")
     voice_io = io.BytesIO()
+
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
             voice_io.write(chunk["data"])
@@ -62,6 +79,10 @@ async def tts(text: str, voice_preset: VoicePreset):
     try:
         if voice_preset.type == "fish":
             return await fish_tts(text, voice_preset)
+
+        elif voice_preset.type == 'mahiruoshi':
+            # use mahiruoshi's huggingface API
+            return await online_mahiruoshi_api(text, voice_preset.voice_line)
 
         elif voice_preset.type == "edge":
             ""
@@ -76,5 +97,5 @@ async def tts(text: str, voice_preset: VoicePreset):
     except (SystemExit, KeyboardInterrupt):
         raise
     except Exception as err:
-        bot_logger.warning(f"TTS err encountered: {err}")
+        bot_logger.warning(f"TTS err encountered: {err}", exc_info=True)
         return None

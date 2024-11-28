@@ -35,6 +35,7 @@ class L2dBotPreset(BotPreset):
     """Bot with L2D, and controls of mood"""
 
     live2d_model_path: str
+    bg_picture_path: str
     mood: dict[str, list[constr(pattern="^[a-zA-Z0-9]+?\\:[a-zA-Z0-9]+?$")]]
     bye_message: str = ""
     voice: VoicePreset | None = None
