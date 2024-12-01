@@ -15,48 +15,387 @@ index 1e072c7c..61f7f367 100644
 +changeFigure:none
 +changeScene:http://localhost:10228/static/readme.txt
 \ No newline at end of file
+diff --git a/packages/webgal/public/game/template/Stage/Choose/choose.scss b/packages/webgal/public/game/template/Stage/Choose/choose.scss
+index 4040078b..4362af6e 100644
+--- a/packages/webgal/public/game/template/Stage/Choose/choose.scss
++++ b/packages/webgal/public/game/template/Stage/Choose/choose.scss
+@@ -11,19 +11,22 @@
+ }
+ 
+ .Choose_item {
+-  font-family: "WebgalUI", serif;
++  font-family: "汉仪正圆", serif;
+   cursor: pointer;
+-  min-width: 50%;
++  min-width: 100%;
+   padding: 0.25em 1em 0.25em 1em;
+-  font-size: 265%;
+-  color: #8E354A;
++  font-size: 200%;
++  color: #333;
++  font-weight: bold;
+   text-align: center;
+-  border-radius: 4px;
++  border-radius: 50px;
+   border: 3px solid rgba(0, 0, 0, 0);
+   box-shadow: 0 0 25px rgba(0, 0, 0, 0.25);
+-  background: rgba(255, 255, 255, 0.65);
++  background: rgba(255, 255, 255, .95);
+   margin: 0.25em 0 0.25em 0;
+   transition: background-color 0.5s, border 0.5s, font-weight 0.5s, box-shadow 0.5s;
++  transform: rotate(1deg);
++  height: 100px;
+ 
+   &:hover {
+     background: rgba(255, 255, 255, 0.9);
+@@ -33,7 +36,7 @@
+ }
+ 
+ .Choose_item_disabled {
+-  font-family: "WebgalUI", serif;
++  font-family: "WebgalUI";
+   cursor: not-allowed;
+   min-width: 50%;
+   padding: 0.25em 1em 0.25em 1em;
+@@ -49,6 +52,14 @@
+ }
+ 
+ .Choose_item_outer {
+-  color: #000;
++  display: flex;
++  align-items: center;
++  color: #333;
+   min-width: 50%;
+-}
++  height: 130px;
++  border-radius: 65px 65px 65px 65px;
++  padding: 25px 25px 25px 25px;
++  background: rgba(255, 59, 114, .9);
++  transform: rotate(-1deg);
++  margin-bottom: 25px;
++}
+\ No newline at end of file
+diff --git a/packages/webgal/public/game/template/Stage/TextBox/textbox.scss b/packages/webgal/public/game/template/Stage/TextBox/textbox.scss
+index 23120e12..1e10bdca 100644
+--- a/packages/webgal/public/game/template/Stage/TextBox/textbox.scss
++++ b/packages/webgal/public/game/template/Stage/TextBox/textbox.scss
+@@ -1,41 +1,34 @@
+ .TextBox_main {
+   z-index: 3;
+   position: absolute;
+-  right: 25px;
+-  min-height: 330px;
+-  max-height: 330px;
++  right: 320px;
++  left: 320px;
++  min-height: 320px;
++  max-height: 320px;
+   background-blend-mode: darken;
+-  border-radius: 165px 20px 20px 165px;
+-  bottom: 20px;
+-  left: 275px;
+-  font-weight: bold;
+-  color: white;
+-  padding: 1em 50px 70px 200px;
++  border-radius: 40px 40px 40px 40px;
++  bottom: 80px;
++  font-weight: 700;
++  color: #fff;
++  padding: 15px 50px 10px 75px;
+   box-sizing: border-box;
+   display: flex;
+   flex-flow: column;
+   align-items: flex-start;
+   letter-spacing: 0.2em;
+   transition: left 0.33s;
++  box-shadow: 0px 0px 15px #5f5c5b80;
++
+ }
+ 
+ .TextBox_main_miniavatarOff {
+-  left: 25px;
++  left: 100px;
++  right: 100px;
+ }
+ 
+ .TextBox_Background {
+   z-index: 2;
+-  background: linear-gradient(rgba(245, 247, 250, 1) 0%, rgba(189, 198, 222, 1) 100%);
+-}
+-
+-@keyframes showSoftly {
+-  0% {
+-    opacity: 0;
+-  }
+-
+-  100% {
+-    opacity: 1;
+-  }
++  background: linear-gradient(rgba(245, 247, 250, .95) 0%, rgba(255, 255, 255, .87) 100%);
+ }
+ 
+ .TextBox_textElement_start {
+@@ -49,11 +42,11 @@
+   white-space: nowrap;
+   left: 0;
+   top: 0;
+-  background-image: linear-gradient(#0B346E 0%, #141423 100%);
++  background: rgb(36, 36, 36);
+   background-clip: text;
+   -webkit-background-clip: text;
+   color: transparent;
+-  z-index: 2;
++  z-index: 1;
+ }
+ 
+ .inner {
+@@ -61,7 +54,7 @@
+   position: absolute;
+   left: 0;
+   top: 0;
+-  -webkit-text-stroke: 0.1em rgba(255, 255, 255, 1);
++  -webkit-text-stroke: 0px rgb(255, 255, 255);
+   z-index: 1;
+ }
+ 
+@@ -70,41 +63,29 @@
+   white-space: nowrap;
+ }
+ 
+-
+ .TextBox_textElement_Settled {
+   position: relative;
+   opacity: 1;
+ }
+ 
+-
+ .TextBox_showName {
+-  font-size: 85%;
+-  padding: 0 2em 0 2em;
++  font-size: 55%;
++  padding: 40px 4em;
+   position: absolute;
+-  left: 150px;
+-  top: -68px;
+-  height: 80px;
++  left: 0px;
++  top: -80px;
++  height: 100px;
+   line-height: 68px;
+-  border-radius: 40px;
+-  z-index: 3;
+-  border: 4px solid rgba(255, 255, 255, 0);
++  border-radius: 50px 0px 0px 50px;
++  z-index: 2;
++  border: 0px solid rgba(255, 255, 255, 0);
+ }
+ 
+ .TextBox_ShowName_Background {
+   z-index: 2;
+-  background: rgba(11, 52, 110, 1);
+-  border: 4px solid rgba(255, 255, 255, 0.75);
+-  box-shadow: 3px 3px 10px rgba(100, 100, 100, 0.5);
+-}
+-
+-@keyframes TextDelayShow {
+-  0% {
+-    opacity: 0;
+-  }
+-
+-  100% {
+-    opacity: 1;
+-  }
++  background: rgb(255, 59, 114);
++  border: 3px solid rgba(255, 255, 255, 1);
++  box-shadow: 0px 0px 0px #64646480;
+ }
+ 
+ .miniAvatarContainer {
+@@ -113,7 +94,7 @@
+   width: 450px;
+   bottom: 0;
+   left: -250px;
+-  border-radius: 100% 0 0 100%;
++  border-radius: 0 0 0 0;
+   overflow: hidden;
+ }
+ 
+@@ -128,18 +109,20 @@
+ .nameContainer {
+   position: absolute;
+   left: 2em;
+-  top: -3.5em;
++  top: 0em;
+ }
+ 
+ .outerName {
+   position: absolute;
+-  left: 0;
+-  top: 0;
+-  background: linear-gradient(150deg, rgb(255, 255, 255) 0%, rgb(255, 255, 255) 35%, rgb(165, 212, 228) 100%);
++  font-family: 汉仪正圆;
++  font-size: 95%;
++  left: -3em;
++  top: -25px;
++  background: rgb(255, 255, 255);
+   background-clip: text;
+   -webkit-background-clip: text;
+-  color: transparent;
+-  z-index: 2;
++  color: rgb(255, 255, 255);
++  z-index: 3;
+ }
+ 
+ .innerName {
+@@ -147,9 +130,31 @@
+   left: 0;
+   top: 0;
+   z-index: 1;
++  color: transparent;
+ }
+ 
+ .text {
+   line-height: 1.9em;
+   overflow: hidden;
++  font-family: "汉仪正圆";
++}
++
++@keyframes showSoftly {
++  0% {
++    opacity: 0;
++  }
++
++  100% {
++    opacity: 1;
++  }
+ }
++
++@keyframes TextDelayShow {
++  0% {
++    opacity: 1;
++  }
++
++  100% {
++    opacity: 1;
++  }
++}
+\ No newline at end of file
+diff --git a/packages/webgal/public/game/template/UI/Title/title.scss b/packages/webgal/public/game/template/UI/Title/title.scss
+index 48073c96..7d25e014 100644
+--- a/packages/webgal/public/game/template/UI/Title/title.scss
++++ b/packages/webgal/public/game/template/UI/Title/title.scss
+@@ -6,7 +6,7 @@
+ }
+ 
+ .Title_buttonList {
+-  font-family: "思源宋体", serif;
++  font-family: "思源宋体";
+   display: flex;
+   position: absolute;
+   left: 0;
 diff --git a/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss b/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss
-index 930d0463..83d1aa09 100644
+index 930d0463..1d621c8a 100644
 --- a/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss
 +++ b/packages/webgal/src/Core/gameScripts/getUserInput/getUserInput.module.scss
-@@ -12,9 +12,10 @@
+@@ -4,7 +4,7 @@
+   height: 100%;
+   display: flex;
+   flex-flow: column;
+-  justify-content: center;
++  justify-content: flex-end;
+   align-items: center;
+   z-index: 13;
+   background: rgba(0, 0, 0, 0.05);
+@@ -12,12 +12,16 @@
  
  .Choose_item {
    cursor: pointer;
 -  min-width: 50%;
-+  min-width: 75%;
-+  min-height: 60%;
++  min-width: 100%;
++  min-height: 100%;
    padding: 0.25em 1em 0.25em 1em;
 -  font-size: 265%;
+-  color: #005caf;
++  font-family: "汉仪正圆", serif;
 +  font-size: 175%;
-   color: #005caf;
++  font-weight: bold;
++  color: #000000;
    text-align: center;
-   border-radius: 4px;
+-  border-radius: 4px;
++  border-radius: 40px;
++  bottom: 80px;
+   border: 3px solid rgba(0, 0, 0, 0);
+   box-shadow: 0 0 25px rgba(0, 0, 0, 0.25);
+   background: rgba(255, 255, 255, 0.65);
+@@ -45,16 +49,16 @@
+   height: 100%;
+   display: flex;
+   justify-content: center;
+-  align-items: center;
++  align-items: flex-end;
+   flex-flow: column;
+-  background: linear-gradient(to right,
+-    rgba(0, 92, 175, 0) 0%,
+-    rgba(0, 92, 175, 0.5) 33%,
+-    rgba(0, 92, 175, 0.85) 50%,
+-    rgba(0, 92, 175, 0.5) 66%,
+-    rgba(0, 92, 175, 0) 100%
+-  );
+-  padding: 1em 5em 1.5em 5em;
++//   background: linear-gradient(to right,
++//   rgba(255,59,114, 0) 0%,
++//   rgba(255,59,114, 0.5) 33%,
++//   rgba(255,59,114, 0.85) 50%,
++//   rgba(255,59,114, 0.5) 66%,
++//   rgba(255,59,114, 0) 100%
++// );
++  padding: 2.5em 4.5em 5.5em 4.5em;
+ }
+ 
+ .glabalDialog_container {
+@@ -73,11 +77,11 @@
+   //padding: 1px 1px 1px 1px;
+ }
+ 
+-.title {
+-  font-size: 300%;
+-  letter-spacing: 0.05em;
+-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+-}
++// .title {
++//   font-size: 300%;
++//   letter-spacing: 0.05em;
++//   text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
++// }
+ 
+ .Choose_item:hover {
+   //font-weight: bold;
 diff --git a/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx b/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx
-index 68fb584b..8b814837 100644
+index 68fb584b..177b97b9 100644
 --- a/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx
 +++ b/packages/webgal/src/Core/gameScripts/getUserInput/index.tsx
-@@ -31,7 +31,7 @@ export const getUserInput = (sentence: ISentence): IPerform => {
+@@ -30,9 +30,9 @@ export const getUserInput = (sentence: ISentence): IPerform => {
+   const chooseElements = (
      <div style={{ fontFamily: font }} className={styles.glabalDialog_container}>
        <div className={styles.glabalDialog_container_inner}>
-         <div className={styles.title}>{title}</div>
+-        <div className={styles.title}>{title}</div>
 -        <input id="user-input" className={styles.Choose_item} />
-+        <textarea id="user-input" className={styles.Choose_item} />
++        {/* <div className={styles.title}>{title}</div> */}
          <div
++          id='submit-user-input'
            onMouseEnter={playSeEnter}
            onClick={() => {
-diff --git a/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts b/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts
-index a09822b7..45806dd4 100644
---- a/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts
-+++ b/packages/webgal/src/Core/util/prefetcher/scenePrefetcher.ts
-@@ -10,7 +10,9 @@ import { WebGAL } from '@/Core/WebGAL';
- 
- export const scenePrefetcher = (sceneList: Array<string>): void => {
-   for (const e of sceneList) {
--    if (!WebGAL.sceneManager.settledScenes.includes(e)) {
-+    if (e.match(/^http:/) || e.match(/^https:/)) {
-+      logger.info(`跳过预加载在线场景：${e}`);
-+    } else if (!WebGAL.sceneManager.settledScenes.includes(e)) {
-       logger.info(`现在预加载场景${e}`);
-       sceneFetcher(e).then((r) => {
-         sceneParser(r, e, e);
+             const userInput: HTMLInputElement = document.getElementById('user-input') as HTMLInputElement;
+@@ -49,6 +49,12 @@ export const getUserInput = (sentence: ISentence): IPerform => {
+         >
+           {buttonText}
+         </div>
++        <textarea id="user-input" className={styles.Choose_item}
++          onKeyDown={(event) => {
++            if (event.key === 'Enter' && event.ctrlKey) {
++              document.getElementById('submit-user-input')?.click()
++            }
++          }} />
+       </div>
+     </div>
+   );

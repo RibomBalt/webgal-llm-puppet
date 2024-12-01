@@ -64,7 +64,9 @@ async def edge_run_tts(text: str, voice_preset: VoicePreset):
         # basic check on tts voice name
         voice_line = "zh-CN-XiaoyiNeural"
 
-    communicate = edge_tts.Communicate(text, voice_line, rate="+30%", pitch="-10Hz")
+    settings = get_settings()
+    proxy_url = settings.proxy_url if settings.proxy_url != "" else None
+    communicate = edge_tts.Communicate(text, voice_line, rate="+30%", pitch="-10Hz", proxy=proxy_url)
     voice_io = io.BytesIO()
 
     async for chunk in communicate.stream():
