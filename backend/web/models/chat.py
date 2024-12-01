@@ -17,6 +17,7 @@ class ChatRole(str, Enum):
     user = "user"
     assistant = "assistant"
 
+
 class ChatSingleMessage(BaseModel):
     role: ChatRole
     content: str
@@ -34,7 +35,9 @@ class ChatMessage(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     def export_message(self):
-        return ChatSingleMessage.model_validate({"role": self.role, "content": self.msg}).model_dump(mode='json')
+        return ChatSingleMessage.model_validate(
+            {"role": self.role, "content": self.msg}
+        ).model_dump(mode="json")
 
 
 class ChatSessionMeta(BaseModel):
@@ -52,7 +55,9 @@ class ChatSessionMeta(BaseModel):
 
     def export_system_prompt(self):
         return (
-            ChatSingleMessage.model_validate({"role": ChatRole.system, "content": self.system_prompt}).model_dump(mode='json')
+            ChatSingleMessage.model_validate(
+                {"role": ChatRole.system, "content": self.system_prompt}
+            ).model_dump(mode="json")
             if self.system_prompt
             else None
         )
@@ -121,9 +126,7 @@ class ChatSession(BaseModel):
             model_logger.warning(f"try reading {sess_cache_key} from cache, not found")
             raise IndexError(f"{sess_id.hex} not found in cache")
 
-        sess_meta = ChatSessionMeta.model_validate_json(
-            await cache.get(sess_cache_key)
-        )
+        sess_meta = ChatSessionMeta.model_validate_json(await cache.get(sess_cache_key))
 
         history_keys = [
             f"history:{sess_id.hex}:{msg_id}"
@@ -160,8 +163,10 @@ class ChatSession(BaseModel):
                 for imsg in range(-self.non_cached, 0)
             ]
             await cache.multi_set(msg_to_cache)
-            model_logger.debug(f"msg save to cache: {[pair[0] for pair in msg_to_cache]}")
-        
+            model_logger.debug(
+                f"msg save to cache: {[pair[0] for pair in msg_to_cache]}"
+            )
+
         self.non_cached = 0
 
         return True
@@ -199,6 +204,15 @@ class ChatSession(BaseModel):
         message_request.extend(history[::-1])
         bot_logger.debug(f"new chat request: {message_request}")
 
+        model_params = self.meta.llm_params.model_dump(mode="json")
+        # try to set stream_options > include_usage
+        if "stream_options" not in model_params:
+            model_params["stream_options"] = {}
+        if ("include_usage" not in model_params["stream_options"]) or (
+            not model_params["stream_options"]["include_usage"]
+        ):
+            model_params["stream_options"]["include_usage"] = True
+
         stream = await client.chat.completions.create(
             model=secret.model,
             messages=message_request,
@@ -208,20 +222,34 @@ class ChatSession(BaseModel):
 
         async def resp_gen(cache=None):
             resp = []
+            total_tokens = 0
             async for chunk in stream:
                 chunk_piece = chunk.choices[0].delta.content or ""
+                if chunk.usage is not None:
+                    total_tokens += chunk.usage.total_tokens
                 yield chunk_piece
                 resp.append(chunk_piece)
 
             resp_text = "".join(resp)
+            model_logger.debug(f"total_token: {total_tokens}")
             model_logger.debug(f"resp_gen: before add_message: {resp_text}")
             self.add_message("assistant", resp_text)
             model_logger.debug(f"resp_gen: after add_message: {resp_text}")
-            
+
             if cache is not None:
                 # there are times when this is out of context lifespan, so we have to save again
-                model_logger.debug(f"resp_gen: save to cache: {self.meta.id}, msg={self.meta.current_msg_length}")
+                model_logger.debug(
+                    f"resp_gen: save to cache: {self.meta.id}, msg={self.meta.current_msg_length}"
+                )
                 await self.save_to_redis_cache(cache)
+
+                if total_tokens > 0:
+                    if await cache.exists("total_token"):
+                        prev_token = await cache.get("total_token", total_tokens)
+                        await cache.set("total_token", prev_token + total_tokens)
+                    else:
+                        await cache.set("total_token", total_tokens)
+
 
             yield None
 

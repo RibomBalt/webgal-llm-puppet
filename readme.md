@@ -42,7 +42,7 @@ bgm:http://localhost:10228/static/assets/office/office-ambience.mp3
 changeScene:http://localhost:10228/webgal/newchat.txt?bot=sakiko;
 label:help
 changeFigure:none
-changeScene:http://localhost:10228/static/readme.txt
+changeScene:http://localhost:10228/webgal/readme.txt
 ```
 
 !!! note 假如你因为某种原因把后端和WebGAL放在两台机器上，比如在一个远程服务器上部署fastapi后端，然后在本机浏览器打开WebGAL网页，你需要注意把localhost改成后端所在机器的IP地址。这是因为Web GAL是个纯静态项目，所有的资源请求其实都是你本机的浏览器发出的。

@@ -434,3 +434,15 @@ async def get_voice_file(
     else:
         web_logger.debug(f"tts fail to hit: {cache_key}")
         raise HTTPException(404, f"voice {cache_key} not found")
+    
+
+@webgal_route.get("/readme.txt")
+async def readme(cache: Annotated[Cache, Depends(get_cache)]):
+    total_token = await cache.get("total_token", 0)
+
+    template = jinja2_env.get_template("readme.txt")
+    script = template.render(
+        total_token = total_token
+    )
+
+    return script
