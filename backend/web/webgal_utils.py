@@ -58,8 +58,9 @@ logger = logging.getLogger("bot")
 TEXT_SPLIT_PUNCTUATIONS = "。？！；\n"
 
 # match a sentence 
-match_first_sentence = re.compile(r'^((（[^）]+?）)|(([^。？！（；\n]*?[。？！；\n]+)))')
+match_first_sentence = re.compile(r'^((（[^）]+?）)|^([(][^)]+?[)])|(([^。？！（；\n]*?[。？！；\n]+)))')
 match_parathesis = re.compile(r'（[^）]+?）')
+match_parathesis_ascii = re.compile(r'[(][^)]+?[)]')
 
 def text_split_sentence(text: str):
     """split a sentence (returned by LLM) into several sentences that fit WebGAL UI
@@ -88,4 +89,6 @@ def text_split_sentence(text: str):
 def remove_parathesis(sentence:str, replace=''):
     """remove （）from sentence
     """
-    return match_parathesis.sub(replace, sentence)
+    sentence = match_parathesis.sub(replace, sentence)
+    sentence = match_parathesis_ascii.sub(replace, sentence)
+    return sentence
