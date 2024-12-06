@@ -1,14 +1,18 @@
+本项目为[WebGAL](https://github.com/OpenWebGAL/WebGAL)基础上的衍生项目，利用外部脚本驱动WebGAL演出内容，并与WebGAL内部获取用户输入的界面交互，并在此基础上实现大语言模型对话。[演示视频](https://www.bilibili.com/video/BV1pLifYeESA)。
+
+This is a derivative project based on [WebGAL](https://github.com/OpenWebGAL/WebGAL), using external scripts to drive the content of WebGAL engine, interacting with WebGAL's internal user input interface, and building a LLM chatbox app on top of that. Check a demo video [here](https://www.bilibili.com/video/BV1pLifYeESA)
+
 # 部署方式
 
 ## 大模型 API KEY
-1. 获取一个支持使用python openai库调用的API KEY（我用的deepseek）
+1. 获取一个支持使用python `openai`库调用的API KEY（我用的deepseek）
 2. 在`backend/secrets.yml`中，并按格式添加内容：
    1. 前面的名字：默认为`deepseek`，需要和`system_prompts.yml`中`sakiko - model`保持一致
-   2. `model`: 模型内部名，是传入OpenAI客户端的名称，以deepseek为例，应该填`deepseek-chat`
+   2. `model`: 模型内部名，是传入`openai`客户端的名称，以deepseek为例，应该填`deepseek-chat`
    3. `api_key`: 你的KEY
    4. `base_url`: 你的模型URL
 
-!!! note 或者你有条件也可以本地部署大模型，让`base_url`指向对应URL即可。
+> 或者你有条件也可以本地部署大模型，让`base_url`指向对应URL即可。
 
 ## 本项目（fastapi后端）
 - 准备一个Python=3.11环境（其他版本没测试）
@@ -16,25 +20,22 @@
 - 运行：`cd backend && python app.py`或者`cd backend && uvicorn app:app --port=10228 --reload`。这个服务需要挂在后台。
 
 ## WebGAL
-!!! info 我的WebGAL版本：4.5.9
+> 我的WebGAL版本：4.5.9
 
-### 准备带MyGO素材 + L2D库的WebGAL环境
+### 从零开始准备环境：
+#### 1. 准备带MyGO素材 + L2D库的WebGAL环境
 首先你需要一个包含了mygo立绘和L2D的[WebGAL引擎源码](https://github.com/OpenWebGAL/WebGAL)。如果你在WebGAL的MyGO二创群里，你可以把群文件的`MyGO2.2`文件夹里的内容复制到`packages/webgal/public`（或者你也可以选择<s>手动</s>写脚本从bestdori直接下载）。目前版本的常服祥子的L2D模型会位于`packages/webgal/public/game/figure/mygo_avemujica_v6/sakiko/341_casual-2023_rip/model.json`，其中路径中`figure`的后的部分和`system_prompt.yml`中`live2d_model_path`相同，可以自行修改。
 
 之后你还需要按照[官方文档](https://docs.openwebgal.com/live2D.html)的指南下载L2D运行库并注释掉相关代码。
 
-### （可选）WebGAL界面美化/魔改
+#### 2. （可选）WebGAL界面美化/魔改
 在此基础上，我还使用了群里的仿Bestdori UI，可以直接放到放`packages/webgal/public/game/template`中。另外处理用户输入的`getUserInput`组件不能用`template`修改，我直接修改了部分组件源码，包括调整输入框的位置、字体，用`textarea`支持多行输入，以及加入`Ctrl+Enter`直接提交输入的快捷键。
 
 所有改动详见[webgal.git.diff](webgal.git.diff)。你可以视情况接受这些改动。
 
-### 编译/部署WebGAL
-完成修改后，你可以：
-- 在WebGAL目录下`yarn dev`拉起一个临时服务器，然后访问控制台弹出的链接。
-- 或者先`yarn build`后，在`packages/webgal/dist`下找到编译后的静态网页，然后用任何可以部署静态服务器的方式部署（例如`python -m http.server 3000`，或者nginx, apache2等等）
+#### 3. start.txt 入口场景
+WebGAL是从`start.txt`这个场景脚本启动的。我们需要让它最终以一个`changeScene`跳转到后端的程序入口。比如：
 
-### start.txt 入口场景
-我的启动脚本`start.txt`：
 ```
 choose:客服小祥📞:llm|README.MD:help;
 label:llm
@@ -45,14 +46,23 @@ changeFigure:none
 changeScene:http://localhost:10228/webgal/readme.txt
 ```
 
-!!! note 假如你因为某种原因把后端和WebGAL放在两台机器上，比如在一个远程服务器上部署fastapi后端，然后在本机浏览器打开WebGAL网页，你需要注意把localhost改成后端所在机器的IP地址。这是因为Web GAL是个纯静态项目，所有的资源请求其实都是你本机的浏览器发出的。
+#### 4. 编译/部署WebGAL
+完成修改后，你可以：
+- 在WebGAL目录下`yarn dev`拉起一个临时服务器，然后访问控制台弹出的链接。
+- 或者先`yarn build`后，在`packages/webgal/dist`下找到编译后的静态网页，然后用任何可以部署静态服务器的方式部署（例如`python -m http.server 3000`，或者nginx, apache2等等）
+  - 不要直接用文件管理器打开`index.html`
+
+### 如果你有WebGAL Terre MyGO专版：
+编辑好启动脚本后，点击上方标签页——导出——导出为网页，然后在`Exported_Games\{你的项目名}\web`目录找到导出后的网页，等价于第三步编译后的静态网页。
+
+当然这种情况下第二步美化界面只能跳过了……
 
 # 修改配置
 
-!!! note 修改配置后需要重新启动后端才能生效。重新启动后正在进行的对话聊天记录会消失，无法继续对话。
+> 修改配置后需要重新启动后端才能生效。重新启动后正在进行的对话聊天记录会消失，无法继续对话。
 
 ## 系统提示词 & 定制
-提示词、模型参数和表情配置等默认保存`backend/system_prompts.yml`中，每一组是一个【预设】（对应到[源码](backend/web/models/bot.py)中即`BotPreset`或者`L2dBotPreset`类）
+提示词、模型参数和表情配置等默认保存[backend/system_prompts.yml](backend/system_prompt.yml)中，每一组是一个【预设】（对应到[源码](backend/web/models/bot.py)中即`BotPreset`或者`L2dBotPreset`类）
 
 其他参数不说自明（懒得写了）。需要特别说明的参数：
 - `mood`: 这个字典项，都是一个表情名称到多个l2d动作/表情代号的字典。表情代号除了`listening`是刚接受用户输入后使用，其他表情都是`mood_analyzer`这个预设的系统提示词返回的信息。程序对每句回复会请求`mood_analyzer`判断这一句的情感倾向，然后找到`mood`中对应项的列表，随机抽取一个作为这句话的动作/表情。
