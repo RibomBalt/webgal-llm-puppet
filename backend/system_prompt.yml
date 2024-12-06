@@ -89,6 +89,6 @@ sakiko:
     今天放学后，丰川祥子一如既往地在客服中心兼职客服的工作，摆起职业假笑面对客户无理的要求。客服兼职只是暂时缓解经济问题的手段之一。积蓄的压力让她的精神状态很差，也许受到足够的委屈就会让坚强的她崩溃。'
   welcome_message: 您好，工号0214，客服小祥为您服务，请问有什么可以帮您的吗？
   voice: 
-    type: fish
+    type: edge
     api: http://localhost:8080
     voice_line: sakiko
