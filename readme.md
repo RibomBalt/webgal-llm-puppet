@@ -17,7 +17,7 @@ This is a derivative project based on [WebGAL](https://github.com/OpenWebGAL/Web
 ## 本项目（fastapi后端）
 - 准备一个Python=3.11环境（其他版本没测试）
 - 安装依赖：`cd backend && pip install -r requirements.txt`
-- 运行：`cd backend && python app.py`或者`cd backend && uvicorn app:app --port=10228 --reload`。这个服务需要挂在后台。
+- 运行：`cd backend && uvicorn app:app --port=10228 --reload`。这个服务需要挂在后台。
 
 ## WebGAL
 > 我的WebGAL版本：4.5.9
