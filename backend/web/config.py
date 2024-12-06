@@ -31,7 +31,7 @@ class AppSettings(BaseSettings):
         """
         bot_presets = {}
         for preset_file_name in self.llm_preset_yml.split(':'):
-            with open(preset_file_name, "r") as fp:
+            with open(preset_file_name, "r", encoding='utf-8') as fp:
                 sys_prompt_yml: dict = yaml_load(fp.read())
             for k, v in sys_prompt_yml.items():
                 if "live2d_model_path" in v:
@@ -49,7 +49,7 @@ class AppSettings(BaseSettings):
         """
         secrets = {}
         for secret_fname in self.llm_secret_yml.split(':'):
-            with open(secret_fname, "r") as fp:
+            with open(secret_fname, "r", encoding='utf-8') as fp:
                 secrets_obj = yaml_load(fp.read())
             # shallow merge
             for k, v in secrets_obj.items():
